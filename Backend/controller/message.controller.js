@@ -4,9 +4,9 @@ import Message from "../models/message.models.js";
 
 export const sendMessage = async (req, res) => {
     try {
-        const { message } = req.body;
+        const { message, messageType } = req.body;
         const { id: receiverId } = req.params;
-        const senderId = req.user._id; // current logged-in user
+        const senderId = req.user._id;
 
         let conversation = await Conversation.findOne({
             members: { $all: [senderId, receiverId] }
@@ -16,7 +16,7 @@ export const sendMessage = async (req, res) => {
         if (!conversation) {
             conversation = new Conversation({
                 members: [senderId, receiverId],
-                messages: [] // Initialize the messages array
+                messages: []
             });
         }
 
@@ -24,6 +24,7 @@ export const sendMessage = async (req, res) => {
             senderId,
             receiverId,
             message,
+            messageType: messageType || 'text'
         });
 
         await newMessage.save();
@@ -61,10 +62,94 @@ export const getMessage = async (req, res) => {
         if (!conversation) {
             return res.status(201).json([])
         }
-        const messages = conversation.message;
+
+        // Filter out messages deleted by the current user
+        const messages = conversation.message.filter(msg => !msg.deletedBy.includes(senderId));
+
         res.status(201).json(messages);
     } catch (error) {
         console.log("Error in getMessage", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export const deleteChat = async (req, res) => {
+    try {
+        const { id: receiverId } = req.params;
+        const senderId = req.user._id;
+
+        const conversation = await Conversation.findOne({
+            members: { $all: [senderId, receiverId] }
+        });
+
+        if (!conversation) {
+            return res.status(200).json({ message: "Conversation not found" });
+        }
+
+        // Soft delete messages (add senderId to deletedBy array)
+        await Message.updateMany(
+            { _id: { $in: conversation.message } },
+            { $addToSet: { deletedBy: senderId } }
+        );
+
+        // We do NOT delete the conversation document itself anymore, 
+        // as the other user still needs it. 
+        // If both users delete it, we could technically clean it up, but for "Delete for me", keeping it is safer.
+
+        // Optionally, we could remove the conversation from the sidebar if we had a "hiddenConversation" logic,
+        // but for now, we just clear the messages view.
+
+        res.status(200).json({ message: "Conversation deleted successfully" });
+
+    } catch (error) {
+        console.log("Error in deleteChat", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export const clearChat = async (req, res) => {
+    try {
+        const { id: receiverId } = req.params;
+        const senderId = req.user._id;
+
+        const conversation = await Conversation.findOne({
+            members: { $all: [senderId, receiverId] }
+        });
+
+        if (!conversation) {
+            return res.status(200).json({ message: "Conversation not found" });
+        }
+
+        // Soft delete messages
+        await Message.updateMany(
+            { _id: { $in: conversation.message } },
+            { $addToSet: { deletedBy: senderId } }
+        );
+
+        // We do NOT empty conversation.message array effectively for the other user.
+        // conversation.message = []; // REMOVED hard clear
+
+        res.status(200).json({ message: "Chat cleared successfully" });
+
+    } catch (error) {
+        console.log("Error in clearChat", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export const deleteMessage = async (req, res) => {
+    try {
+        const { id: messageId } = req.params;
+        const userId = req.user._id;
+
+        await Message.findByIdAndUpdate(
+            messageId,
+            { $addToSet: { deletedBy: userId } }
+        );
+
+        res.status(200).json({ message: "Message deleted successfully" });
+    } catch (error) {
+        console.log("Error in deleteMessage", error);
         res.status(500).json({ error: "Internal server error" });
     }
 }

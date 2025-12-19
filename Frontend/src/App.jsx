@@ -6,56 +6,55 @@ import Login from "./components/Login";
 import { useAuth } from "./context/Authprovider";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import CallInterface from "./components/CallInterface";
+
+import useConversation from "./zustand/useConversation.js";
 
 function App() {
   const [authUser, setAuthUser] = useAuth();
+  const { selectedConversation } = useConversation();
+
   console.log(authUser);
   return (
     <>
       <BrowserRouter>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            authUser ? (
-              // <div className="flex h-screen">
-              //   <Left />
-              //   <Right />
-              // </div>
-              <div className="drawer lg:drawer-open">
-                <input
-                  id="my-drawer-2"
-                  type="checkbox"
-                  className="drawer-toggle"
-                />
-                <div className="drawer-content flex flex-col items-center justify-center">
-                  <Right />
-                </div>
-                <div className="drawer-side">
-                  <label
-                    htmlFor="my-drawer-2"
-                    aria-label="close sidebar"
-                    className="drawer-overlay"
-                  ></label>
-                  <ul className="menu w-80 min-h-full bg-black text-base-content">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              authUser ? (
+                <div className="flex h-[100dvh] overflow-hidden">
+                  {/* Left Part: User List */}
+                  <div
+                    className={`w-full md:w-[350px] bg-black ${
+                      selectedConversation ? "hidden md:block" : "block"
+                    }`}>
                     <Left />
-                  </ul>
+                  </div>
+
+                  {/* Right Part: Chat */}
+                  <div
+                    className={`flex-1 bg-slate-900 ${
+                      !selectedConversation ? "hidden md:block" : "block"
+                    }`}>
+                    <Right />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <Navigate to={"/login"} />
-            )
-          }
-        />
-        <Route
-          path="/login"
-          element={authUser ? <Navigate to="/" /> : <Login />}
-        />
-        <Route
-          path="/signup"
-          element={authUser ? <Navigate to="/" /> : <Signup />}
-        />
-      </Routes>
+              ) : (
+                <Navigate to={"/login"} />
+              )
+            }
+          />
+          <Route
+            path="/login"
+            element={authUser ? <Navigate to="/" /> : <Login />}
+          />
+          <Route
+            path="/signup"
+            element={authUser ? <Navigate to="/" /> : <Signup />}
+          />
+        </Routes>
+        <CallInterface />
       </BrowserRouter>
       <Toaster />
     </>

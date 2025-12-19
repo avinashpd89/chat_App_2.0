@@ -16,9 +16,31 @@ const userSchema = mongoose.Schema({
     },
     ConfirmPassword: {
         type: String,
-    }
-},{timestamps: true})
+    },
+    profilepic: {
+        type: String,
+        default: "",
+    },
+    contacts: [
+        {
+            userId: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User"
+            },
+            nickname: {
+                type: String,
+                required: true
+            }
+        }
+    ],
+    blockedUsers: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }
+    ]
+}, { timestamps: true })
 
-const User = mongoose.model("User" ,userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User

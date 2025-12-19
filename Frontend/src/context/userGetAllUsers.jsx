@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
+import useConversation from "../zustand/useConversation.js";
 
 function userGetAllUsers() {
-  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { users, setUsers } = useConversation();
+
   useEffect(() => {
     const getUsers = async () => {
       setLoading(true);
@@ -16,15 +18,16 @@ function userGetAllUsers() {
             Authorization: `Bearer ${token}`,
           },
         });
-        setAllUsers(response.data);
+        setUsers(response.data);
         setLoading(false);
       } catch (error) {
         console.log("Error in userGetAllUsers: " + error);
+        setLoading(false);
       }
     };
     getUsers();
-  }, []);
-  return [allUsers, loading];
+  }, [setUsers]);
+  return [users, loading];
 }
 
 export default userGetAllUsers;

@@ -10,14 +10,14 @@ function User({ user }) {
   const inOnline = onlineUsers.includes(user._id);
   return (
     <div
-      className={`hover:bg-slate-600 duration-300 ${
-        isSelected ? "bg-slate-700" : ""
+      className={`hover:bg-base-200 duration-300 ${
+        isSelected ? "bg-base-100" : ""
       }`}
       onClick={() => setSelectedConversation(user)}>
-      <div className="flex space-x-4 px-8 py-3 hover:bg-slate-700 cursor-pointer">
+      <div className="flex space-x-4 px-8 py-3 cursor-pointer">
         <div className={`avatar ${inOnline ? "online" : ""}`}>
           <div className="w-12 rounded-full">
-          <img src={Avatar} alt="User Avatar" />
+            <img src={user.profilepic || Avatar} alt="User Avatar" />
           </div>
         </div>
         <div>

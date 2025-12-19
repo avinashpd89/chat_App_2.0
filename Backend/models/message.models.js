@@ -12,12 +12,23 @@ const messageSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    message:{
+    message: {
         type: String,
         required: true
-    }
+    },
+    messageType: {
+        type: String,
+        enum: ['text', 'image', 'video'],
+        default: 'text'
+    },
+    deletedBy: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    ]
 
-}, {timestamps: true});
+}, { timestamps: true });
 
 const Message = mongoose.model("message", messageSchema);
 
