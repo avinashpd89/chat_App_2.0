@@ -45,8 +45,9 @@ function Message({ message }) {
   return (
     <div>
       <div className="p-4 group">
-        <div className={`chat ${chatName}`}>
-          <div className={`chat-bubble ${chatColor} break-words`}>
+        <div className={`chat ${chatName} min-w-0 overflow-hidden`}>
+          <div
+            className={`chat-bubble ${chatColor} break-words max-w-[90%] md:max-w-[70%]`}>
             {message.messageType === "text" ? (
               renderMessageContent(message.message, itsMe)
             ) : message.messageType === "image" ? (

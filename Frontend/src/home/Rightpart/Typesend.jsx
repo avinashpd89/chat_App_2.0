@@ -81,8 +81,8 @@ function Typesend() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-center gap-2 md:gap-4 h-[8vh] px-4 md:px-4 bg-transparent md:bg-base-100 w-full">
-        <div className="flex-1 flex items-center bg-base-300 rounded-full px-4 py-2 gap-2 md:gap-4 md:bg-transparent md:p-0 md:rounded-none">
+      <div className="flex items-center gap-2 h-[10vh] md:h-[8vh] px-2 md:px-4 bg-transparent md:bg-base-100 max-w-full">
+        <div className="flex-1 flex items-center bg-base-300 rounded-full px-3 py-2 gap-2 md:gap-4 md:bg-transparent md:p-0 md:rounded-none min-w-0">
           <div className="relative" ref={pickerRef}>
             <BsEmojiSmile
               className="text-xl md:text-2xl text-base-content cursor-pointer hover:text-primary duration-200"
@@ -126,7 +126,7 @@ function Typesend() {
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center bg-blue-500 md:bg-transparent p-3 md:p-0 rounded-full text-white md:text-blue-500 shadow-lg md:shadow-none hover:bg-blue-600 md:hover:bg-transparent duration-200">
+          className="flex-shrink-0 flex items-center justify-center bg-blue-500 md:bg-transparent p-2 md:p-0 rounded-full text-white md:text-blue-500 shadow-lg md:shadow-none hover:bg-blue-600 md:hover:bg-transparent duration-200">
           <IoSend className="text-xl md:text-3xl" />
         </button>
       </div>

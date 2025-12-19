@@ -228,13 +228,25 @@ export const addContact = async (req, res) => {
 
         // Remove from blocked list if present
         currentUser.blockedUsers = currentUser.blockedUsers.filter(id => id.toString() !== userToAdd._id.toString());
+        userToAdd.blockedUsers = userToAdd.blockedUsers.filter(id => id.toString() !== currentUser._id.toString());
 
+        // Add to current user's contacts
         currentUser.contacts.push({
             userId: userToAdd._id,
             nickname: userToAdd.name
         });
 
+        // Add current user to the other user's contacts (Bidirectional)
+        const isUserInOtherContacts = userToAdd.contacts.some(c => c.userId.toString() === currentUser._id.toString());
+        if (!isUserInOtherContacts) {
+            userToAdd.contacts.push({
+                userId: currentUser._id,
+                nickname: currentUser.name
+            });
+        }
+
         await currentUser.save();
+        await userToAdd.save();
 
         res.status(200).json({
             message: "Contact added successfully",

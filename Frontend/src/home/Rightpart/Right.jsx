@@ -11,7 +11,7 @@ function Right() {
     return setSelectedConversation(null);
   }, [setSelectedConversation]);
   return (
-    <div className="w-full bg-base-200 text-base-content h-full flex flex-col">
+    <div className="w-full bg-base-200 text-base-content h-full flex flex-col min-w-0 overflow-x-hidden">
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {!selectedConversation ? (
           <NoChatSelected />
@@ -33,7 +33,6 @@ export default Right;
 
 const NoChatSelected = () => {
   const [authUser] = useAuth();
-  console.log(authUser);
   return (
     <>
       <div className="flex h-screen items-center justify-center">

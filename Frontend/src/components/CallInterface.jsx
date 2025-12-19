@@ -1,6 +1,13 @@
 import React from "react";
 import { useCall } from "../context/CallProvider";
-import { MdCallEnd, MdCall } from "react-icons/md";
+import {
+  MdCallEnd,
+  MdCall,
+  MdMic,
+  MdMicOff,
+  MdVideocam,
+  MdVideocamOff,
+} from "react-icons/md";
 
 const CallInterface = () => {
   const {
@@ -16,6 +23,10 @@ const CallInterface = () => {
     isCalling,
     rejectCall,
     isCallRejected,
+    toggleMic,
+    toggleCamera,
+    isMuted,
+    isCameraOff,
   } = useCall();
 
   // Only render if there is an active interaction
@@ -91,10 +102,34 @@ const CallInterface = () => {
             </div>
           </div>
 
-          <div className="mt-6 flex space-x-4">
+          <div className="mt-6 flex space-x-6 items-center">
+            <button
+              onClick={toggleMic}
+              className={`btn btn-circle btn-lg ${
+                isMuted ? "btn-error" : "btn-neutral"
+              }`}>
+              {isMuted ? (
+                <MdMicOff className="text-2xl" />
+              ) : (
+                <MdMic className="text-2xl" />
+              )}
+            </button>
+
+            <button
+              onClick={toggleCamera}
+              className={`btn btn-circle btn-lg ${
+                isCameraOff ? "btn-error" : "btn-neutral"
+              }`}>
+              {isCameraOff ? (
+                <MdVideocamOff className="text-2xl" />
+              ) : (
+                <MdVideocam className="text-2xl" />
+              )}
+            </button>
+
             <button
               onClick={leaveCall}
-              className="btn btn-error text-white rounded-full px-8 flex items-center gap-2">
+              className="btn btn-error text-white rounded-full px-8 h-12 flex items-center gap-2">
               <MdCallEnd className="text-xl" /> End Call
             </button>
           </div>

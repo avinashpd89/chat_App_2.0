@@ -44,11 +44,8 @@ io.on("connection", (socket) => {
 
     socket.on("answerCall", (data) => {
         console.log("Server received answerCall event to:", data.to);
-        if (users[data.to]) {
-            io.to(users[data.to]).emit("callAccepted", data.signal);
-        } else {
-            console.log("Target user for answer NOT found:", data.to);
-        }
+        // data.to is already a socket ID from the client (call.from)
+        io.to(data.to).emit("callAccepted", data.signal);
     });
 
     socket.on("rejectCall", (data) => {

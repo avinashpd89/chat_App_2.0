@@ -14,7 +14,6 @@ function App() {
   const [authUser, setAuthUser] = useAuth();
   const { selectedConversation } = useConversation();
 
-  console.log(authUser);
   return (
     <>
       <BrowserRouter>
@@ -34,7 +33,7 @@ function App() {
 
                   {/* Right Part: Chat */}
                   <div
-                    className={`flex-1 bg-slate-900 ${
+                    className={`flex-1 min-w-0 bg-slate-900 ${
                       !selectedConversation ? "hidden md:block" : "block"
                     }`}>
                     <Right />
