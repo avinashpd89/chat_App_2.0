@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAuth } from "../context/Authprovider";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { SignalManager } from "../utils/SignalManager.js";
 
 function Signup() {
   const [authUser, setAuthUser] = useAuth();
@@ -22,26 +23,37 @@ function Signup() {
   };
 
   const onSubmit = async (data) => {
-    const userInfo = {
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      confirmPassword: data.confirmPassword,
-    };
-    await axios
-      .post("/api/user/signup", userInfo)
-      .then((response) => {
-        if (response.data) {
-          toast.success("Signup successfully");
-        }
-        localStorage.setItem("ChatApp", JSON.stringify(response.data));
-        setAuthUser(response.data);
-      })
-      .catch((error) => {
-        if (error.response) {
-          toast.error("Error: " + error.response.data.error);
-        }
-      });
+    try {
+      // 1. Generate Signal Keys (Pre-computation)
+      // Call with null since we don't have ID yet, and implementation doesn't strictly require it for key gen
+      const bundle = await SignalManager.generateIdentity("temp_init");
+
+      const userInfo = {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+        publicKey: bundle.identityKey, // Send Identity Key to satisfy backend validation
+      };
+
+      // 2. Signup
+      const signupRes = await axios.post("/api/user/signup", userInfo);
+      if (signupRes.data) {
+        toast.success("Signup successfully");
+        localStorage.setItem("ChatApp", JSON.stringify(signupRes.data));
+        setAuthUser(signupRes.data);
+
+        // 3. Publish Keys
+        await axios.post("/api/user/keys/publish", bundle);
+      }
+    } catch (error) {
+      console.error("Signup error", error);
+      if (error.response) {
+        toast.error("Error: " + error.response.data.error);
+      } else {
+        toast.error("Signup failed");
+      }
+    }
   };
   return (
     <>
@@ -154,7 +166,9 @@ function Signup() {
           <div className="flex justify-between">
             <p>
               Have an account?{" "}
-              <Link to = "/login" className="text-blue-500 cursor-pointer ml-1.5">Login</Link>
+              <Link to="/login" className="text-blue-500 cursor-pointer ml-1.5">
+                Login
+              </Link>
             </p>
             <input
               type="submit"

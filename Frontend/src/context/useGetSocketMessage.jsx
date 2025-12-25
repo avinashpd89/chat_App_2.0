@@ -4,12 +4,15 @@ import useConversation from "../zustand/useConversation.js";
 import sound from "../assets/sound.mp3";
 import axios from "axios";
 import Cookies from "js-cookie";
+import { useAuth } from "./Authprovider.jsx";
 
-import { decryptMessage } from "../utils/encryption.js";
+import { SignalManager } from "../utils/SignalManager.js";
 
 function useGetSocketMessage() {
   const { socket } = useSocketContext();
-  const { message, setMessage, users, setUsers } = useConversation();
+  const { message, setMessage, users, setUsers, selectedConversation } =
+    useConversation();
+  const [authUser] = useAuth();
 
   useEffect(() => {
     socket.on("newMessage", async (newMessage) => {
@@ -18,9 +21,18 @@ function useGetSocketMessage() {
 
       const decryptedMsg = {
         ...newMessage,
-        message: decryptMessage(newMessage.message),
+        message: await SignalManager.decryptMessage(
+          newMessage.senderId,
+          newMessage.message,
+          authUser?.user?._id,
+          newMessage._id
+        ),
       };
-      setMessage([...message, decryptedMsg]);
+
+      // Only append if viewing this conversation
+      if (selectedConversation?._id === newMessage.senderId) {
+        setMessage([...message, decryptedMsg]);
+      }
 
       // Check if sender is in the current list
       const senderExists = users.some(
@@ -44,7 +56,15 @@ function useGetSocketMessage() {
     return () => {
       socket.off("newMessage");
     };
-  }, [socket, message, setMessage, users, setUsers]);
+  }, [
+    socket,
+    message,
+    setMessage,
+    users,
+    setUsers,
+    selectedConversation?._id,
+    authUser?._id,
+  ]);
 }
 
 export default useGetSocketMessage;

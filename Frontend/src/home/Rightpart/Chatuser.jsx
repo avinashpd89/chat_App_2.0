@@ -111,8 +111,13 @@ function Chatuser() {
     return onlineUsers && onlineUsers.includes(userId) ? "Online" : "Offline";
   };
 
+  console.log(
+    "Chatuser: selectedConversation.isContact:",
+    selectedConversation.isContact
+  );
+
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <div className="flex items-center justify-between h-[8vh] bg-base-100 px-5 duration-300 border-b border-base-300/20">
         <div className="flex items-center space-x-3">
           <button
@@ -175,12 +180,26 @@ function Chatuser() {
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => callUser(selectedConversation._id, true)}
+            onClick={() =>
+              callUser(
+                selectedConversation._id,
+                selectedConversation.name,
+                selectedConversation.profilepic,
+                true
+              )
+            }
             className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
             <IoVideocam className="text-2xl text-base-content" />
           </button>
           <button
-            onClick={() => callUser(selectedConversation._id, false)}
+            onClick={() =>
+              callUser(
+                selectedConversation._id,
+                selectedConversation.name,
+                selectedConversation.profilepic,
+                false
+              )
+            }
             className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
             <IoCall className="text-2xl text-base-content" />
           </button>
@@ -263,8 +282,8 @@ function Chatuser() {
 
       <ProfileViewOverlay />
 
-      {!selectedConversation.isContact && (
-        <div className="absolute top-[9vh] left-4 right-4 bg-gray-800 border border-yellow-500 rounded-lg p-4 shadow-xl z-10 flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in-down">
+      {selectedConversation.isContact === false && (
+        <div className="absolute top-[8vh] inset-x-4 mt-2 bg-gray-800 border border-yellow-500 rounded-lg p-4 shadow-2xl z-[100] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in-down">
           <div>
             <h3 className="text-yellow-500 font-bold text-lg">
               ⚠️ Safety Warning

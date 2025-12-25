@@ -65,9 +65,21 @@ export const CallProvider = ({ children }) => {
   useEffect(() => {
     if (!socket) return;
 
-    const onCallUser = ({ from, name: callerName, signal }) => {
-      console.log("Client received incoming call from:", callerName, from);
-      setCall({ isReceivingCall: true, from, name: callerName, signal });
+    const onCallUser = ({ from, name: callerName, signal, callType }) => {
+      console.log(
+        "Client received incoming call from:",
+        callerName,
+        from,
+        "Type:",
+        callType
+      );
+      setCall({
+        isReceivingCall: true,
+        from,
+        name: callerName,
+        signal,
+        callType,
+      });
       setIsCallRejected(false);
       setCallAccepted(false);
       setCallEnded(false);
@@ -118,7 +130,9 @@ export const CallProvider = ({ children }) => {
     setIsCalling(false);
     setCallAccepted(false);
     setCall({});
+    setIsCallRejected(false); // Reset rejection state
     setRemoteStream(null);
+    setTargetUser(null); // Reset target user
     if (connectionRef.current) {
       connectionRef.current.destroy();
       connectionRef.current = null;
@@ -127,9 +141,7 @@ export const CallProvider = ({ children }) => {
       stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
-    setTimeout(() => {
-      window.location.reload();
-    }, 500);
+    // Removed window.location.reload() to stay on the same page
   };
 
   // Effect to safely attach remote stream when video element is ready
@@ -138,7 +150,15 @@ export const CallProvider = ({ children }) => {
       console.log("Attaching remote stream to video element");
       userVideo.current.srcObject = remoteStream;
     }
-  }, [remoteStream, callAccepted]);
+  }, [remoteStream, callAccepted, callEnded]);
+
+  // Effect to safely attach local stream when video element is ready
+  useEffect(() => {
+    if (stream && myVideo.current) {
+      console.log("Attaching local stream to video element");
+      myVideo.current.srcObject = stream;
+    }
+  }, [stream, callAccepted, isCalling]);
 
   const iceConfig = {
     iceServers: [
@@ -167,10 +187,18 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  const callUser = async (id, video = true) => {
-    console.log("Initiating call to:", id);
+  const callUser = async (id, name, profilepic, video = true) => {
+    console.log(
+      "Initiating call to:",
+      id,
+      "Name:",
+      name,
+      "Type:",
+      video ? "video" : "audio"
+    );
     setIsCalling(true);
     setTargetUser(id);
+    setCall({ ...call, name, profilepic, callType: video ? "video" : "audio" }); // Set name, pic, and type for initiator UI
     const currentStream = await startLocalStream(video);
     if (!currentStream) {
       setIsCalling(false);
@@ -191,6 +219,7 @@ export const CallProvider = ({ children }) => {
         signalData: data,
         from: socket.id,
         name: authUser?.user?.name || "Unknown",
+        callType: video ? "video" : "audio",
       });
     });
 
@@ -211,8 +240,16 @@ export const CallProvider = ({ children }) => {
   };
 
   const answerCall = async () => {
-    console.log("Answering call from:", call.from);
-    const currentStream = await startLocalStream(true);
+    const isVideo = call.callType === "video";
+    console.log(
+      "Answering call from:",
+      call.from,
+      "Type:",
+      call.callType,
+      "isVideo:",
+      isVideo
+    );
+    const currentStream = await startLocalStream(isVideo);
     setCallAccepted(true);
 
     const peer = new Peer({

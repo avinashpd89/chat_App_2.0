@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAuth } from "../context/Authprovider";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { SignalManager, signalStore } from "../utils/SignalManager.js";
 function Login() {
   const [authUser, setAuthUser] = useAuth();
   const {
@@ -15,13 +16,33 @@ function Login() {
   const onSubmit = async (data) => {
     const userInfo = {
       email: data.email,
-      password: data.password
+      password: data.password,
     };
     await axios
       .post("/api/user/login", userInfo)
-      .then((response) => {
+      .then(async (response) => {
         if (response.data) {
           toast.success("Login successfully");
+
+          // Check/Generate Keys
+          // Check Signal Keys
+          const identity = await signalStore.getIdentityKeyPair();
+          if (!identity) {
+            console.log("No partial Signal keys found, regenerating...");
+            try {
+              const bundle = await SignalManager.generateIdentity(
+                response.data.user._id
+              );
+              await axios.post("/api/user/keys/publish", bundle);
+              await axios.put("/api/user/update", {
+                publicKey: bundle.identityKey,
+              });
+              response.data.user.publicKey = bundle.identityKey; // local update
+            } catch (err) {
+              console.error("Signal Init failed", err);
+              toast.error("Encryption setup failed.");
+            }
+          }
         }
         localStorage.setItem("ChatApp", JSON.stringify(response.data));
         setAuthUser(response.data);
@@ -94,7 +115,9 @@ function Login() {
           <div className="flex justify-between">
             <p>
               New User?
-              <Link to = "/signup" className="text-blue-500 cursor-pointer ml-1.5">
+              <Link
+                to="/signup"
+                className="text-blue-500 cursor-pointer ml-1.5">
                 Signup
               </Link>
             </p>

@@ -1,33 +1,48 @@
 import React, { useState } from "react";
 import useConversation from "../zustand/useConversation.js";
 import axios from "axios";
+import { useAuth } from "./Authprovider.jsx";
 
-import { encryptMessage, decryptMessage } from "../utils/encryption.js";
+import { SignalManager } from "../utils/SignalManager.js";
 
 function useSendMessage() {
   const [loading, setLoading] = useState(false);
   const { message, setMessage, selectedConversation } = useConversation();
+  const [authUser] = useAuth();
 
   const sendMessages = async (newMessage, messageType = "text") => {
     // renamed arg to avoid confusion with state 'message'
-    if (!newMessage || !selectedConversation?._id) {
-      console.log("Message or selected conversation is missing");
+    if (!newMessage || !selectedConversation?._id || !authUser?.user?._id) {
+      console.log("Message, selected conversation, or auth user is missing");
       return;
     }
 
     setLoading(true);
     try {
-      const encryptedText = encryptMessage(newMessage); // Encrypt payload
-      const res = await axios.post(
-        `/api/message/send/${selectedConversation._id}`,
-        { message: encryptedText, messageType }
+      const encryptedPayload = await SignalManager.encryptMessage(
+        selectedConversation?._id,
+        newMessage,
+        authUser?.user?._id,
+        async (userId) => {
+          const res = await axios.get(`/api/user/keys/fetch/${userId}`);
+          return res.data;
+        }
       );
 
-      // The server returns the saved message (encrypted).
-      // We need to store the decrypted version in our local state to show it in UI.
+      const res = await axios.post(
+        `/api/message/send/${selectedConversation._id}`,
+        { message: encryptedPayload, messageType }
+      );
+
+      // We process the response to display it immediately.
+      // Since we just encrypted it, we know the plaintext is `newMessage`.
+      // But for consistency (and if server modified it?), we could decrypt?
+      // Actually, standard pattern is to append the *plaintext* version to local state for UI responsiveness,
+      // or decypt the return. Let's just use the original message for local display to avoid re-decryption overhead/issues.
+
       const decryptedResMessage = {
         ...res.data.newMessage,
-        message: decryptMessage(res.data.newMessage.message),
+        message: newMessage, // Use original plaintext for local display
       };
 
       setMessage([...message, decryptedResMessage]);

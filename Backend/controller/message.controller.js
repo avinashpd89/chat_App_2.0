@@ -16,7 +16,7 @@ export const sendMessage = async (req, res) => {
         if (!conversation) {
             conversation = new Conversation({
                 members: [senderId, receiverId],
-                messages: []
+                message: []
             });
         }
 

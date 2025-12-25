@@ -2,10 +2,11 @@ import User from "../models/user.model.js";
 import Conversation from "../models/conversation.model.js";
 import bcrypt from "bcrypt";
 import createTokenAndSaveCookie from "../jwt/generateToken.js";
+import Key from "../models/key.model.js";
 
 // SIGN-UP
 export const signup = async (req, res) => {
-    const { name, email, password, confirmPassword } = req.body;
+    const { name, email, password, confirmPassword, publicKey } = req.body;
     try {
         if (password !== confirmPassword) {
             return res.status(400).json({ error: "Passwords do not match" });
@@ -18,7 +19,8 @@ export const signup = async (req, res) => {
         const newUser = await new User({
             name,
             email,
-            password: hashPassword
+            password: hashPassword,
+            publicKey
         });
         await newUser.save();
         if (newUser) {
@@ -29,7 +31,10 @@ export const signup = async (req, res) => {
                     _id: newUser._id,
                     name: newUser.name,
                     email: newUser.email,
-                    profilepic: newUser.profilepic
+                    name: newUser.name,
+                    email: newUser.email,
+                    profilepic: newUser.profilepic,
+                    publicKey: newUser.publicKey
                 }
             });
         }
@@ -58,7 +63,8 @@ export const login = async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
-                profilepic: user.profilepic
+                profilepic: user.profilepic,
+                publicKey: user.publicKey
             }
         });
     } catch (error) {
@@ -96,6 +102,7 @@ export const allUsers = async (req, res) => {
                 contactsMap.set(contact.userId._id.toString(), {
                     ...contact.userId.toObject(),
                     name: contact.nickname, // Use nickname
+                    publicKey: contact.userId.publicKey,
                     isContact: true
                 });
             }
@@ -118,6 +125,7 @@ export const allUsers = async (req, res) => {
 
                     contactsMap.set(memberId, {
                         ...member.toObject(),
+                        publicKey: member.publicKey,
                         isContact: false // Mark as Stranger
                     });
                 }
@@ -136,7 +144,7 @@ export const allUsers = async (req, res) => {
 // UPDATE USER (SELF)
 export const updateUser = async (req, res) => {
     try {
-        const { name, profilepic } = req.body;
+        const { name, profilepic, publicKey } = req.body;
         const userId = req.user._id;
         const user = await User.findById(userId);
         if (!user) {
@@ -144,6 +152,7 @@ export const updateUser = async (req, res) => {
         }
         if (name) user.name = name;
         if (profilepic) user.profilepic = profilepic;
+        if (publicKey) user.publicKey = publicKey;
         await user.save();
         res.status(200).json({
             message: "User updated successfully",
@@ -151,7 +160,8 @@ export const updateUser = async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
-                profilepic: user.profilepic
+                profilepic: user.profilepic,
+                publicKey: user.publicKey
             }
         });
     } catch (error) {
@@ -255,7 +265,8 @@ export const addContact = async (req, res) => {
                 name: userToAdd.name,
                 email: userToAdd.email,
                 profilepic: userToAdd.profilepic,
-                isContact: true
+                publicKey: userToAdd.publicKey,
+                isContact: true,
             }
         });
     } catch (error) {
@@ -269,15 +280,25 @@ export const removeContact = async (req, res) => {
     try {
         const { contactId } = req.body; // userId of the contact to remove
         const currentUser = await User.findById(req.user._id);
+        const otherUser = await User.findById(contactId);
 
-        if (!currentUser) {
+        if (!currentUser || !otherUser) {
             return res.status(404).json({ error: "User not found" });
         }
 
-        // Filter out the contact
+        // Filter out the contact from current user
         currentUser.contacts = currentUser.contacts.filter(c => c.userId.toString() !== contactId);
 
+        // Filter out current user from other user's contacts
+        otherUser.contacts = otherUser.contacts.filter(c => c.userId.toString() !== currentUser._id.toString());
+
+        // Delete the conversation between them
+        await Conversation.findOneAndDelete({
+            members: { $all: [currentUser._id, otherUser._id], $size: 2 }
+        });
+
         await currentUser.save();
+        await otherUser.save();
         res.status(200).json({ message: "Contact removed successfully" });
     } catch (error) {
         console.log("Error in removeContact: " + error);
@@ -306,6 +327,78 @@ export const blockUser = async (req, res) => {
         res.status(200).json({ message: "User blocked successfully" });
     } catch (error) {
         console.log("Error in blockUser: " + error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// PUBLISH SIGNAL KEYS
+export const publishKeys = async (req, res) => {
+    try {
+        const { identityKey, registrationId, signedPreKey, oneTimePreKeys } = req.body;
+        const userId = req.user._id;
+
+        // Upsert keys for this user
+        // Note: In real app, we might append OneTimeKeys, not replace everything.
+        // For simplicity, we overwrite or create.
+
+        let keyRecord = await Key.findOne({ userId });
+        if (!keyRecord) {
+            keyRecord = new Key({
+                userId,
+                identityKey,
+                registrationId,
+                signedPreKey,
+                oneTimePreKeys
+            });
+        } else {
+            keyRecord.identityKey = identityKey;
+            keyRecord.registrationId = registrationId;
+            keyRecord.signedPreKey = signedPreKey;
+            // Append or replace? Let's replace for initialization, or append if managing pool.
+            // Client should probably manage logic. Here we just set.
+            keyRecord.oneTimePreKeys = oneTimePreKeys;
+        }
+
+        await keyRecord.save();
+        res.status(200).json({ message: "Keys published successfully" });
+
+    } catch (error) {
+        console.log("Error in publishKeys: " + error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// FETCH KEY BUNDLE
+export const fetchKeyBundle = async (req, res) => {
+    try {
+        const { id } = req.params; // userId of target
+        const keyData = await Key.findOne({ userId: id });
+
+        if (!keyData) {
+            return res.status(404).json({ error: "Keys not found for user" });
+        }
+
+        // Return: Identity, SignedPreKey, and ONE OneTimePreKey (if available)
+        let oneTimeKey = null;
+        if (keyData.oneTimePreKeys && keyData.oneTimePreKeys.length > 0) {
+            // Pop one key logic? Or just return one and let client manage collisions?
+            // Proper Signal: Server deletes it.
+            oneTimeKey = keyData.oneTimePreKeys[0]; // Take first
+
+            // Remove it from DB to prevent reuse (Perfect Forward Secrecy)
+            keyData.oneTimePreKeys.shift();
+            await keyData.save();
+        }
+
+        res.status(200).json({
+            identityKey: keyData.identityKey,
+            registrationId: keyData.registrationId,
+            signedPreKey: keyData.signedPreKey,
+            oneTimePreKey: oneTimeKey
+        });
+
+    } catch (error) {
+        console.log("Error in fetchKeyBundle: " + error);
         res.status(500).json({ error: "Internal server error" });
     }
 };
