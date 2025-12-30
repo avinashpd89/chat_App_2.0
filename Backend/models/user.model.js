@@ -23,8 +23,7 @@ const userSchema = mongoose.Schema({
     },
     publicKey: {
         type: String,
-        required: true,
-        default: "" // Temporarily default empty for existing users, but frontend will enforce generation
+        required: true
     },
     contacts: [
         {

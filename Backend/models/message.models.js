@@ -18,7 +18,7 @@ const messageSchema = new mongoose.Schema({
     },
     messageType: {
         type: String,
-        enum: ['text', 'image', 'video'],
+        enum: ['text', 'image', 'video', 'document'],
         default: 'text'
     },
     deletedBy: [
@@ -26,7 +26,11 @@ const messageSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
         }
-    ]
+    ],
+    isDeletedForEveryone: {
+        type: Boolean,
+        default: false
+    }
 
 }, { timestamps: true });
 

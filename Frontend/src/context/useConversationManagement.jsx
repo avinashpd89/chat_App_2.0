@@ -20,8 +20,10 @@ const useConversationManagement = () => {
     try {
       await axios.delete(`/api/message/delete/${selectedConversation._id}`);
       // Success toast handled by UI or suppressed
+      const targetId = selectedConversation._id;
       setSelectedConversation(null);
       setMessage([]);
+      useConversation.getState().clearLastMessage(targetId);
     } catch (error) {
       console.log(error);
       toast.error("Failed to delete conversation");
@@ -38,6 +40,7 @@ const useConversationManagement = () => {
       await axios.post(`/api/message/clear/${selectedConversation._id}`);
       // Success toast handled by UI or suppressed
       setMessage([]);
+      useConversation.getState().clearLastMessage(selectedConversation._id);
     } catch (error) {
       console.log(error);
       toast.error("Failed to clear chat");

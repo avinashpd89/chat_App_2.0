@@ -2,27 +2,64 @@ import React from "react";
 import useConversation from "../../zustand/useConversation.js";
 import { useSocketContext } from "../../context/SocketContext.jsx";
 import Avatar from "../../assets/avatar.jpg";
+import { useNotifications } from "../../context/NotificationContext";
+import NotificationBadge from "../../components/NotificationBadge";
 
 function User({ user }) {
   const { selectedConversation, setSelectedConversation } = useConversation();
   const isSelected = selectedConversation?._id === user._id;
   const { socket, onlineUsers } = useSocketContext();
+  const { unreadCounts } = useNotifications();
+
   const inOnline = onlineUsers.includes(user._id);
+  const unreadCount = unreadCounts[user._id?.toString()] || 0;
+
+  const { lastMessages } = useConversation();
+  const lastMsg = lastMessages?.[user._id?.toString()];
+
   return (
     <div
-      className={`hover:bg-base-200 duration-300 ${
+      className={`hover:bg-base-200 duration-300 transition-all ${
         isSelected ? "bg-base-100" : ""
       }`}
       onClick={() => setSelectedConversation(user)}>
-      <div className="flex space-x-4 px-8 py-3 cursor-pointer">
+      <div className="flex items-center px-6 py-4 cursor-pointer gap-4">
+        {/* Avatar Section */}
         <div className={`avatar ${inOnline ? "online" : ""}`}>
-          <div className="w-12 rounded-full">
+          <div className="w-12 rounded-full ring-1 ring-base-content/10 shadow-sm">
             <img src={user.profilepic || Avatar} alt="User Avatar" />
           </div>
         </div>
-        <div>
-          <h1 className="font-bold">{user.name} </h1>
-          <span>{user.email}</span>
+
+        {/* Content Section */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1">
+          <div className="flex justify-between items-baseline">
+            <h1 className="font-bold truncate text-base-content text-sm md:text-base leading-tight">
+              {user.name}
+            </h1>
+            {lastMsg?.time && (
+              <span
+                className={`text-[10px] md:text-xs shrink-0 ${
+                  unreadCount > 0 ? "text-red-500 font-bold" : "opacity-40"
+                }`}>
+                {lastMsg.time}
+              </span>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center gap-2">
+            <p
+              className={`text-xs truncate flex-1 ${
+                unreadCount > 0
+                  ? "text-base-content font-medium opacity-90"
+                  : "opacity-50"
+              }`}>
+              {lastMsg?.text || ""}
+            </p>
+            <div className="shrink-0">
+              <NotificationBadge count={unreadCount} />
+            </div>
+          </div>
         </div>
       </div>
     </div>

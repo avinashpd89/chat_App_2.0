@@ -11,6 +11,9 @@ export const signup = async (req, res) => {
         if (password !== confirmPassword) {
             return res.status(400).json({ error: "Passwords do not match" });
         }
+        if (!publicKey) {
+            return res.status(400).json({ error: "Public key is required for E2E encryption" });
+        }
         const user = await User.findOne({ email });
         if (user) {
             return res.status(400).json({ error: "User already registered" });
@@ -29,8 +32,6 @@ export const signup = async (req, res) => {
                 message: "User created successfully",
                 user: {
                     _id: newUser._id,
-                    name: newUser.name,
-                    email: newUser.email,
                     name: newUser.name,
                     email: newUser.email,
                     profilepic: newUser.profilepic,
@@ -351,16 +352,25 @@ export const publishKeys = async (req, res) => {
                 oneTimePreKeys
             });
         } else {
-            keyRecord.identityKey = identityKey;
-            keyRecord.registrationId = registrationId;
-            keyRecord.signedPreKey = signedPreKey;
-            // Append or replace? Let's replace for initialization, or append if managing pool.
-            // Client should probably manage logic. Here we just set.
-            keyRecord.oneTimePreKeys = oneTimePreKeys;
+            if (identityKey) keyRecord.identityKey = identityKey;
+            if (registrationId) keyRecord.registrationId = registrationId;
+            if (signedPreKey) keyRecord.signedPreKey = signedPreKey;
+
+            // If oneTimePreKeys are provided, append them or fill if empty
+            if (oneTimePreKeys && oneTimePreKeys.length > 0) {
+                if (!keyRecord.oneTimePreKeys) keyRecord.oneTimePreKeys = [];
+                // Filter out any potential duplicates based on keyId (extra safety)
+                const existingIds = new Set(keyRecord.oneTimePreKeys.map(k => k.keyId));
+                const uniqueNewKeys = oneTimePreKeys.filter(k => !existingIds.has(k.keyId));
+                keyRecord.oneTimePreKeys.push(...uniqueNewKeys);
+            }
         }
 
         await keyRecord.save();
-        res.status(200).json({ message: "Keys published successfully" });
+        res.status(200).json({
+            message: "Keys published successfully",
+            count: keyRecord.oneTimePreKeys.length
+        });
 
     } catch (error) {
         console.log("Error in publishKeys: " + error);
@@ -399,6 +409,25 @@ export const fetchKeyBundle = async (req, res) => {
 
     } catch (error) {
         console.log("Error in fetchKeyBundle: " + error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+// GET KEY COUNT
+export const getKeyCount = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const keyData = await Key.findOne({ userId });
+
+        if (!keyData) {
+            return res.status(200).json({ count: 0 });
+        }
+
+        res.status(200).json({
+            count: keyData.oneTimePreKeys ? keyData.oneTimePreKeys.length : 0
+        });
+
+    } catch (error) {
+        console.log("Error in getKeyCount: " + error);
         res.status(500).json({ error: "Internal server error" });
     }
 };

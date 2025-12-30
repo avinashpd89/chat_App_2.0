@@ -6,7 +6,6 @@ import useGetSocketMessage from "../../context/useGetSocketMessage.jsx";
 
 function Messages() {
   const { loading, message } = useGetMessage();
-  useGetSocketMessage(); // listing incoming messages
 
   const lastMsgRef = useRef();
   useEffect(() => {

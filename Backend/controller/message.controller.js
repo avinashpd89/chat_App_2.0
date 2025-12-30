@@ -63,8 +63,10 @@ export const getMessage = async (req, res) => {
             return res.status(201).json([])
         }
 
-        // Filter out messages deleted by the current user
-        const messages = conversation.message.filter(msg => !msg.deletedBy.includes(senderId));
+        // Filter out messages deleted only by the current user ("Delete for me")
+        const messages = conversation.message.filter(
+            (msg) => !msg.deletedBy.includes(senderId)
+        );
 
         res.status(201).json(messages);
     } catch (error) {
@@ -140,12 +142,35 @@ export const clearChat = async (req, res) => {
 export const deleteMessage = async (req, res) => {
     try {
         const { id: messageId } = req.params;
+        const { type } = req.query; // 'me' or 'everyone'
         const userId = req.user._id;
 
-        await Message.findByIdAndUpdate(
-            messageId,
-            { $addToSet: { deletedBy: userId } }
-        );
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        if (type === 'everyone') {
+            // Check if requester is sender
+            if (message.senderId.toString() !== userId.toString()) {
+                return res.status(403).json({ error: "Unauthorized to delete for everyone" });
+            }
+            message.isDeletedForEveryone = true;
+            message.message = "[Message deleted]";
+            await message.save();
+
+            // Emit socket event to the receiver
+            const receiverSocketId = getReceiverSocketId(message.receiverId.toString());
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("messageDeleted", { messageId: message._id });
+            }
+        } else {
+            // Delete for me
+            await Message.findByIdAndUpdate(
+                messageId,
+                { $addToSet: { deletedBy: userId } }
+            );
+        }
 
         res.status(200).json({ message: "Message deleted successfully" });
     } catch (error) {

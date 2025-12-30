@@ -1,5 +1,5 @@
 import express from "express";
-import { signup, login, logout, allUsers, updateUser, updateOtherUser, deleteUser, addContact, removeContact, blockUser, publishKeys, fetchKeyBundle } from "../controller/user.controller.js";
+import { signup, login, logout, allUsers, updateUser, updateOtherUser, deleteUser, addContact, removeContact, blockUser, publishKeys, fetchKeyBundle, getKeyCount } from "../controller/user.controller.js";
 import secureRoute from "../middleware/secureRoute.js";
 
 const router = express.Router()
@@ -15,6 +15,7 @@ router.post("/remove-contact", secureRoute, removeContact)
 router.post("/block", secureRoute, blockUser)
 // Signal Protocol Routes
 router.post("/keys/publish", secureRoute, publishKeys);
+router.get("/keys/count", secureRoute, getKeyCount);
 router.get("/keys/fetch/:id", secureRoute, fetchKeyBundle);
 
 export default router;

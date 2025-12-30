@@ -24,14 +24,43 @@ function Self() {
   const handleUpdateProfile = async (newName, file) => {
     let base64Data = null;
 
-    // If a new file is provided, convert it
+    // If a new file is provided, convert and compress it
     if (file) {
-      const reader = new FileReader();
-      const promise = new Promise((resolve) => {
-        reader.onloadend = () => resolve(reader.result);
-      });
-      reader.readAsDataURL(file);
-      base64Data = await promise;
+      const resizeImage = (file) => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const MAX_WIDTH = 200;
+              const MAX_HEIGHT = 200;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL("image/jpeg", 0.7)); // Compress to 70% quality
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      };
+      base64Data = await resizeImage(file);
     }
 
     try {
@@ -41,9 +70,23 @@ function Self() {
 
       const res = await axios.put("/api/user/update", payload);
 
-      // Update local storage and state
+      // Update local storage and state with safety catch
       const updatedUser = { ...authUser, user: res.data.user };
-      localStorage.setItem("ChatApp", JSON.stringify(updatedUser));
+      try {
+        localStorage.setItem("ChatApp", JSON.stringify(updatedUser));
+      } catch (storageError) {
+        if (storageError.name === "QuotaExceededError") {
+          console.warn(
+            "Storage full! Saving user without profile pic to local cache."
+          );
+          // Save a lean version to storage so session is preserved, but keep full version in RAM
+          const leanUser = {
+            ...updatedUser,
+            user: { ...updatedUser.user, profilepic: "" },
+          };
+          localStorage.setItem("ChatApp", JSON.stringify(leanUser));
+        }
+      }
       setAuthUser(updatedUser);
 
       toast.success("Profile updated!");

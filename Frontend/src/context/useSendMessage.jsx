@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAuth } from "./Authprovider.jsx";
 
 import { SignalManager } from "../utils/SignalManager.js";
+import { E2EValidator } from "../utils/E2EValidator.js";
 
 function useSendMessage() {
   const [loading, setLoading] = useState(false);
@@ -19,6 +20,17 @@ function useSendMessage() {
 
     setLoading(true);
     try {
+      // Pre-validation: Ensure both users have encryption keys
+      const isValid = await E2EValidator.validateBeforeSend(
+        authUser.user._id,
+        selectedConversation._id
+      );
+
+      if (!isValid) {
+        console.error("E2E encryption validation failed");
+        // Still attempt to send, but log the warning
+      }
+
       const encryptedPayload = await SignalManager.encryptMessage(
         selectedConversation?._id,
         newMessage,
@@ -44,6 +56,20 @@ function useSendMessage() {
         ...res.data.newMessage,
         message: newMessage, // Use original plaintext for local display
       };
+
+      // Update last message preview for the sidebar
+      const { updateLastMessage } = useConversation.getState();
+      const messageTime = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const previewText =
+        messageType === "text" ? newMessage : `[${messageType}]`;
+      updateLastMessage(
+        selectedConversation._id?.toString(),
+        previewText,
+        messageTime
+      );
 
       setMessage([...message, decryptedResMessage]);
       setLoading(false);

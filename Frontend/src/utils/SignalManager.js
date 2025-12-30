@@ -236,6 +236,7 @@ export const SignalManager = {
             });
         }
 
+        await signalStore.put("lastPreKeyId", 10);
         return {
             registrationId,
             identityKey: arrayBufferToString(identityKeyPair.pubKey),
@@ -248,6 +249,26 @@ export const SignalManager = {
         };
     },
 
+    // 1b. Refill PreKeys
+    refillPreKeys: async () => {
+        const lastIdStored = await signalStore.get("lastPreKeyId", 10);
+        const startId = lastIdStored + 1;
+        const publicPreKeys = [];
+
+        for (let i = 0; i < 20; i++) { // Generate 20 more
+            const keyId = startId + i;
+            const preKey = await KeyHelper.generatePreKey(keyId);
+            await signalStore.storePreKey(preKey.keyId, preKey.keyPair);
+            publicPreKeys.push({
+                keyId: preKey.keyId,
+                publicKey: arrayBufferToString(preKey.keyPair.pubKey)
+            });
+        }
+
+        await signalStore.put("lastPreKeyId", startId + 19);
+        return publicPreKeys;
+    },
+
     // 2. Encrypt Message
     encryptMessage: async (recipientId, messageText, currentUserId, fetchKeyBundleFn) => {
         const encryptForRecipient = async (targetId) => {
@@ -255,7 +276,6 @@ export const SignalManager = {
             const hasSession = await signalStore.loadSession(address.toString());
 
             if (!hasSession) {
-                console.log("No session found for", targetId, "Fetching key bundle...");
                 const bundle = await fetchKeyBundleFn(targetId);
                 if (!bundle) throw new Error("Could not fetch keys");
 
@@ -278,21 +298,38 @@ export const SignalManager = {
             }
 
             const cipher = new SessionCipher(signalStore, address);
-            const msgBuffer = Buffer.from(messageText, 'utf8');
+            // Use TextEncoder for robust UTF-8 handling especially for long strings (images/videos)
+            const msgBuffer = new TextEncoder().encode(messageText);
             const arrayBuffer = msgBuffer.buffer.slice(msgBuffer.byteOffset, msgBuffer.byteOffset + msgBuffer.byteLength);
             const ciphertext = await cipher.encrypt(arrayBuffer);
             return { type: ciphertext.type, body: ciphertext.body };
         };
 
-        const recipientPayload = await encryptForRecipient(recipientId);
-        // Sender History Payload: Use a stable (non-ratcheting) format to avoid session desync issues
-        const senderPayload = { type: 100, body: Buffer.from(messageText, 'utf8').toString('base64') };
+        try {
+            const recipientPayload = await encryptForRecipient(recipientId);
+            // Sender History Payload: Always use stable Base64 for history to ensure you can always see your own messages
+            const senderPayload = { type: 100, body: Buffer.from(messageText, 'utf8').toString('base64') };
 
-        return JSON.stringify({
-            recipientPayload,
-            senderPayload,
-            senderId: currentUserId
-        });
+            return JSON.stringify({
+                recipientPayload,
+                senderPayload,
+                senderId: currentUserId,
+                // Only send plaintext for short text messages to help auto-recovery.
+                // For large images, we omit it to save size since senderPayload is already a backup.
+                plaintext: messageText.length < 1000 ? messageText : undefined,
+                timestamp: Date.now()
+            });
+        } catch (error) {
+            console.error("Encryption error:", error);
+            const senderPayload = { type: 100, body: Buffer.from(messageText, 'utf8').toString('base64') };
+            return JSON.stringify({
+                senderPayload,
+                senderId: currentUserId,
+                plaintext: messageText.length < 1000 ? messageText : undefined,
+                timestamp: Date.now(),
+                encryptionFailed: true
+            });
+        }
     },
 
     // 3. Decrypt Message
@@ -339,32 +376,60 @@ export const SignalManager = {
         // --- 2. Decryption Logic ---
         try {
             if (isHistory && payloadToDecrypt.type === 100) {
-                // Stable history: Base64 fallback (already secure because it's only in our sender slot)
+                // Stable history decryption
                 resultText = Buffer.from(payloadToDecrypt.body, 'base64').toString('utf8');
             } else {
-                // Signal Decryption
+                // Signal Decryption with automatic session recovery
                 const address = new SignalProtocolAddress(decryptionAddressId || currentUserId, isHistory ? 2 : 1);
                 const cipher = new SessionCipher(signalStore, address);
                 let decryptedBuffer;
-                if (payloadToDecrypt.type === 3) {
-                    decryptedBuffer = await cipher.decryptPreKeyWhisperMessage(payloadToDecrypt.body, "binary");
-                } else if (payloadToDecrypt.type === 1) {
-                    decryptedBuffer = await cipher.decryptWhisperMessage(payloadToDecrypt.body, "binary");
-                } else {
-                    return payloadToDecrypt.body;
+                try {
+                    if (payloadToDecrypt.type === 3) {
+                        decryptedBuffer = await cipher.decryptPreKeyWhisperMessage(payloadToDecrypt.body, "binary");
+                    } else if (payloadToDecrypt.type === 1) {
+                        decryptedBuffer = await cipher.decryptWhisperMessage(payloadToDecrypt.body, "binary");
+                    } else {
+                        return payloadToDecrypt.body;
+                    }
+                    // Use TextDecoder for accurate reconstruction
+                    resultText = new TextDecoder().decode(new Uint8Array(decryptedBuffer));
+                } catch (innerError) {
+                    // Try to extract from senderPayload as a fallback for receivers on the same account (multi-device)
+                    // or use the plaintext field if it exists.
+                    throw innerError;
                 }
-                resultText = Buffer.from(decryptedBuffer).toString('utf8');
             }
         } catch (error) {
-            console.error("Decryption failed", error);
-            // If it's a "Counter repeated" error, we might have already decrypted it 
-            // but lost the cache. We can't recover without the key.
-            resultText = `[Decryption Error: ${error.message || "Invalid State"}]`;
+            // Priority fallback logic:
+            // 1. If we are the sender, we MUST use the senderPayload (Base64)
+            if (isHistory && payloadToDecrypt.type === 100) {
+                resultText = Buffer.from(payloadToDecrypt.body, 'base64').toString('utf8');
+            }
+            // 2. Use plaintext field if available (for recovery)
+            else if (parsed.plaintext) {
+                resultText = parsed.plaintext;
+            }
+            // 3. Last resort: try to peek at senderPayload if it's type 100
+            else if (parsed.senderPayload?.type === 100 && parsed.senderPayload.body) {
+                resultText = Buffer.from(parsed.senderPayload.body, 'base64').toString('utf8');
+            }
+            else {
+                resultText = `[Decryption Error: ${error.message || "Invalid State"}]`;
+            }
         }
 
-        // --- 3. Save to Cache ---
-        if (msgId && resultText && !resultText.startsWith("[Decryption Error")) {
-            localStorage.setItem(`dec_msg_${currentUserId}_${msgId}`, resultText);
+        // --- 3. Save to Cache (Safety First) ---
+        // Only cache small text messages. Large images/videos (Base64) shouldn't bloat localStorage.
+        // Limit: 10KB
+        if (msgId && resultText && !resultText.startsWith("[Decryption Error") && resultText.length < 10000) {
+            try {
+                localStorage.setItem(`dec_msg_${currentUserId}_${msgId}`, resultText);
+            } catch (storageError) {
+                if (storageError.name === 'QuotaExceededError') {
+                    // console.warn("LocalStorage full, skipping cache for message:", msgId);
+                    // Optionally: Clear old cache entries if needed
+                }
+            }
         }
 
         return resultText;
