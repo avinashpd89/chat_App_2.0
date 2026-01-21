@@ -12,16 +12,14 @@ function Users({ filterType = "all" }) {
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
   // Combine users and groups for display
-  let combinedItems = [...groups, ...allUsers];
+  let combinedItems = [...(groups || []), ...(allUsers || [])];
 
   // Apply filter based on filterType
   if (filterType === "unread") {
-    combinedItems = combinedItems.filter(
-      (item) => {
-        const unreadCount = unreadCounts[item._id?.toString()];
-        return unreadCount && unreadCount > 0;
-      }
-    );
+    combinedItems = combinedItems.filter((item) => {
+      const unreadCount = unreadCounts[item._id?.toString()];
+      return unreadCount && unreadCount > 0;
+    });
   } else if (filterType === "groups") {
     combinedItems = combinedItems.filter((item) => item.isGroup === true);
   }
@@ -48,9 +46,7 @@ function Users({ filterType = "all" }) {
         className="py-2 flex-1 overflow-y-auto"
         style={{ maxHeight: "calc(84vh - 10vh)" }}>
         {combinedItems.length > 0 ? (
-          combinedItems.map((item, index) => (
-            <User key={index} user={item} />
-          ))
+          combinedItems.map((item, index) => <User key={index} user={item} />)
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <p className="text-gray-400 text-lg mb-4">{getEmptyMessage()}</p>
@@ -59,7 +55,7 @@ function Users({ filterType = "all" }) {
                 onClick={() => {
                   // This will trigger the filter change in parent
                   window.dispatchEvent(
-                    new CustomEvent("changeFilter", { detail: "all" })
+                    new CustomEvent("changeFilter", { detail: "all" }),
                   );
                 }}
                 className="text-primary hover:text-primary-focus font-semibold">

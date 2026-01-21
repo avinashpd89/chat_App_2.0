@@ -44,7 +44,14 @@ function User({ user }) {
         {/* Avatar Section */}
         <div className={`avatar ${inOnline ? "online" : ""}`}>
           <div className="w-12 rounded-full ring-1 ring-base-content/10 shadow-sm">
-            <img src={user.profilepic || Avatar} alt="User Avatar" />
+            <img
+              src={
+                user.isGroup
+                  ? user.groupProfilePic || Avatar
+                  : user.profilepic || Avatar
+              }
+              alt="User Avatar"
+            />
           </div>
         </div>
 

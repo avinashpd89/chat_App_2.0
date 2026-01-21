@@ -13,8 +13,14 @@ export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [authUser] = useAuth();
-  const { groups, setGroups, selectedConversation, setSelectedConversation } =
-    useConversation();
+  const {
+    users,
+    setUsers,
+    groups,
+    setGroups,
+    selectedConversation,
+    setSelectedConversation,
+  } = useConversation();
 
   useEffect(() => {
     if (authUser) {
@@ -27,6 +33,21 @@ export const SocketProvider = ({ children }) => {
 
       socket.on("getOnlineUsers", (users) => {
         setOnlineUsers(users);
+      });
+
+      // Listen for user profile updates
+      socket.on("userUpdated", (updatedUser) => {
+        console.log("Socket: User updated", updatedUser);
+        // Update the user in the users list
+        setUsers((prevUsers) =>
+          prevUsers.map((u) => (u._id === updatedUser._id ? updatedUser : u)),
+        );
+        // If this is the selected conversation, update it too
+        const { selectedConversation, setSelectedConversation } =
+          useConversation.getState();
+        if (selectedConversation?._id === updatedUser._id) {
+          setSelectedConversation({ ...selectedConversation, ...updatedUser });
+        }
       });
 
       // Listen for new group creation

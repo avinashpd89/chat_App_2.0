@@ -40,43 +40,19 @@ function Self() {
   const handleUpdateProfile = async (newName, file) => {
     let base64Data = null;
 
-    // If a new file is provided, convert and compress it
+    // If a new file is provided, check size and convert to base64
     if (file) {
-      const resizeImage = (file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        return toast.error("File size too large (max 5MB)");
+      }
+      const convertToBase64 = (file) => {
         return new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              const MAX_WIDTH = 200;
-              const MAX_HEIGHT = 200;
-              let width = img.width;
-              let height = img.height;
-
-              if (width > height) {
-                if (width > MAX_WIDTH) {
-                  height *= MAX_WIDTH / width;
-                  width = MAX_WIDTH;
-                }
-              } else {
-                if (height > MAX_HEIGHT) {
-                  width *= MAX_HEIGHT / height;
-                  height = MAX_HEIGHT;
-                }
-              }
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext("2d");
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL("image/jpeg", 0.7)); // Compress to 70% quality
-            };
-            img.src = e.target.result;
-          };
+          reader.onload = (e) => resolve(e.target.result);
           reader.readAsDataURL(file);
         });
       };
-      base64Data = await resizeImage(file);
+      base64Data = await convertToBase64(file);
     }
 
     try {

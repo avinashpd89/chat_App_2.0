@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { FaCamera } from "react-icons/fa";
+import toast from "react-hot-toast";
 
 const ProfileModal = ({ isOpen, onClose, user, onUpdate, onDeleteAccount }) => {
   const [name, setName] = useState(user.name);
@@ -12,6 +13,9 @@ const ProfileModal = ({ isOpen, onClose, user, onUpdate, onDeleteAccount }) => {
   const handleImageChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        return toast.error("File size too large (max 5MB)");
+      }
       setFile(selectedFile);
       const reader = new FileReader();
       reader.onloadend = () => {
