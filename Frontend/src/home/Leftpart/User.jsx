@@ -4,12 +4,15 @@ import { useSocketContext } from "../../context/SocketContext.jsx";
 import Avatar from "../../assets/avatar.jpg";
 import { useNotifications } from "../../context/NotificationContext";
 import NotificationBadge from "../../components/NotificationBadge";
+import axios from "axios";
+import { useAuth } from "../../context/Authprovider";
 
 function User({ user }) {
   const { selectedConversation, setSelectedConversation } = useConversation();
   const isSelected = selectedConversation?._id === user._id;
   const { socket, onlineUsers } = useSocketContext();
   const { unreadCounts } = useNotifications();
+  const [authUser] = useAuth();
 
   const inOnline = onlineUsers.includes(user._id);
   const unreadCount = unreadCounts[user._id?.toString()] || 0;
@@ -17,12 +20,26 @@ function User({ user }) {
   const { lastMessages } = useConversation();
   const lastMsg = lastMessages?.[user._id?.toString()];
 
+  const handleSelectConversation = async (selectedUser) => {
+    setSelectedConversation(selectedUser);
+
+    // Mark messages as read on backend
+    if (unreadCount > 0 && authUser?.user?._id) {
+      try {
+        await axios.put(`/api/message/markAsRead/${selectedUser._id}`);
+        console.log("Messages marked as read for:", selectedUser._id);
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
+    }
+  };
+
   return (
     <div
       className={`hover:bg-base-200 duration-300 transition-all ${
         isSelected ? "bg-base-100" : ""
       }`}
-      onClick={() => setSelectedConversation(user)}>
+      onClick={() => handleSelectConversation(user)}>
       <div className="flex items-center px-6 py-4 cursor-pointer gap-4">
         {/* Avatar Section */}
         <div className={`avatar ${inOnline ? "online" : ""}`}>
@@ -35,7 +52,7 @@ function User({ user }) {
         <div className="flex-1 min-w-0 flex flex-col gap-1">
           <div className="flex justify-between items-baseline">
             <h1 className="font-bold truncate text-base-content text-sm md:text-base leading-tight">
-              {user.name}
+              {user.isGroup ? user.groupName : user.name}
             </h1>
             {lastMsg?.time && (
               <span

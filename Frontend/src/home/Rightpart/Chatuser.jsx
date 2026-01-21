@@ -11,11 +11,19 @@ import { useCall } from "../../context/CallProvider.jsx";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ConfirmationModal from "../../components/ConfirmationModal";
+import GroupInfoModal from "../../components/GroupInfoModal";
+import { useAuth } from "../../context/Authprovider.jsx";
 
 function Chatuser() {
-  const { selectedConversation, setSelectedConversation, users, setUsers } =
-    useConversation();
+  const {
+    selectedConversation,
+    setSelectedConversation,
+    users,
+    setUsers,
+    setGroups,
+  } = useConversation();
   const { onlineUsers } = useSocketContext();
+  const [authUser] = useAuth();
   const { deleteChat, clearChat, removeContact } = useConversationManagement();
   const { callUser } = useCall();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -26,6 +34,7 @@ function Chatuser() {
 
   const [activeModal, setActiveModal] = useState(null); // 'clear' or 'delete' or null
   const [isProfileViewOpen, setIsProfileViewOpen] = useState(false); // State for profile view
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
 
   const handleRename = async (e) => {
     e.preventDefault();
@@ -36,8 +45,8 @@ function Chatuser() {
       });
       setUsers(
         users.map((u) =>
-          u._id === selectedConversation._id ? { ...u, name: newName } : u
-        )
+          u._id === selectedConversation._id ? { ...u, name: newName } : u,
+        ),
       );
       setSelectedConversation({ ...selectedConversation, name: newName });
       setIsEditing(false);
@@ -58,6 +67,33 @@ function Chatuser() {
     } else if (activeModal === "removeContact") {
       removeContact();
       toast.success("Contact removed");
+    } else if (activeModal === "deleteGroup") {
+      // Delete Group Logic
+      axios
+        .delete(`/api/message/delete-group/${selectedConversation._id}`)
+        .then(() => {
+          toast.success("Group deleted successfully");
+          setSelectedConversation(null);
+        })
+        .catch((err) => {
+          console.error(err);
+          toast.error(err.response?.data?.error || "Failed to delete group");
+        });
+    } else if (activeModal === "leaveGroup") {
+      axios
+        .put(`/api/message/leave-group/${selectedConversation._id}`)
+        .then(() => {
+          toast.success("Left group successfully");
+          // Use functional update for groups to remove the left group
+          setGroups((prevGroups) =>
+            prevGroups.filter((g) => g._id !== selectedConversation._id),
+          );
+          setSelectedConversation(null);
+        })
+        .catch((err) => {
+          console.error(err);
+          toast.error(err.response?.data?.error || "Failed to leave group");
+        });
     }
     setActiveModal(null);
   };
@@ -108,13 +144,18 @@ function Chatuser() {
   };
 
   const getOnlineUsersStatus = (userId) => {
+    if (selectedConversation.isGroup) {
+      return `${selectedConversation.members?.length || 0} members`;
+    }
     return onlineUsers && onlineUsers.includes(userId) ? "Online" : "Offline";
   };
 
-  console.log(
-    "Chatuser: selectedConversation.isContact:",
-    selectedConversation.isContact
-  );
+  const displayName = selectedConversation.isGroup
+    ? selectedConversation.groupName
+    : selectedConversation.name;
+  const displayPic = selectedConversation.isGroup
+    ? selectedConversation.groupProfilePic
+    : selectedConversation.profilepic;
 
   return (
     <div className="relative z-50">
@@ -127,16 +168,24 @@ function Chatuser() {
           </button>
           <div
             className={`avatar ${
-              onlineUsers && onlineUsers.includes(selectedConversation._id)
+              !selectedConversation.isGroup &&
+              onlineUsers &&
+              onlineUsers.includes(selectedConversation._id)
                 ? "online"
                 : ""
             }`}>
             <div
               className="w-10 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2 cursor-pointer transition-transform hover:scale-105"
-              onClick={() => setIsProfileViewOpen(true)}>
+              onClick={() => {
+                if (selectedConversation.isGroup) {
+                  setIsGroupInfoOpen(true);
+                } else {
+                  setIsProfileViewOpen(true);
+                }
+              }}>
               <img
-                src={selectedConversation.profilepic || Avatar}
-                alt="User Avatar"
+                src={displayPic || Avatar}
+                alt="Avatar"
                 className="object-cover rounded-full"
               />
             </div>
@@ -167,7 +216,7 @@ function Chatuser() {
               ) : (
                 <>
                   <h1 className="text-lg md:text-xl font-normal text-base-content">
-                    {selectedConversation.name}
+                    {displayName}
                   </h1>
                 </>
               )}
@@ -179,30 +228,34 @@ function Chatuser() {
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() =>
-              callUser(
-                selectedConversation._id,
-                selectedConversation.name,
-                selectedConversation.profilepic,
-                true
-              )
-            }
-            className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
-            <IoVideocam className="text-2xl text-base-content" />
-          </button>
-          <button
-            onClick={() =>
-              callUser(
-                selectedConversation._id,
-                selectedConversation.name,
-                selectedConversation.profilepic,
-                false
-              )
-            }
-            className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
-            <IoCall className="text-2xl text-base-content" />
-          </button>
+          {!selectedConversation.isGroup && (
+            <>
+              <button
+                onClick={() =>
+                  callUser(
+                    selectedConversation._id,
+                    selectedConversation.name,
+                    selectedConversation.profilepic,
+                    true,
+                  )
+                }
+                className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
+                <IoVideocam className="text-2xl text-base-content" />
+              </button>
+              <button
+                onClick={() =>
+                  callUser(
+                    selectedConversation._id,
+                    selectedConversation.name,
+                    selectedConversation.profilepic,
+                    false,
+                  )
+                }
+                className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
+                <IoCall className="text-2xl text-base-content" />
+              </button>
+            </>
+          )}
 
           <div className="relative" ref={menuRef}>
             <button
@@ -213,15 +266,17 @@ function Chatuser() {
 
             {menuOpen && (
               <div className="absolute right-0 top-12 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 p-1">
-                <button
-                  onClick={() => {
-                    setIsEditing(true);
-                    setNewName(selectedConversation.name);
-                    setMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-white transition-colors">
-                  Edit Name
-                </button>
+                {!selectedConversation.isGroup && (
+                  <button
+                    onClick={() => {
+                      setIsEditing(true);
+                      setNewName(selectedConversation.name);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-white transition-colors">
+                    Edit Name
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setActiveModal("clear");
@@ -238,14 +293,37 @@ function Chatuser() {
                   className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-red-500 transition-colors">
                   Delete chat
                 </button>
-                <button
-                  onClick={() => {
-                    setActiveModal("removeContact");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-red-500 transition-colors">
-                  Remove Contact
-                </button>
+                {!selectedConversation.isGroup && (
+                  <button
+                    onClick={() => {
+                      setActiveModal("removeContact");
+                      setMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-red-500 transition-colors">
+                    Remove Contact
+                  </button>
+                )}
+                {selectedConversation.isGroup && (
+                  <button
+                    onClick={() => {
+                      setActiveModal("leaveGroup");
+                      setMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-red-500 transition-colors border-t border-gray-700">
+                    Leave Group
+                  </button>
+                )}
+                {selectedConversation.isGroup &&
+                  selectedConversation.groupAdmin === authUser.user._id && (
+                    <button
+                      onClick={() => {
+                        setActiveModal("deleteGroup");
+                        setMenuOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-800 rounded-md text-red-600 font-bold transition-colors border-t border-gray-700">
+                      Delete Group
+                    </button>
+                  )}
               </div>
             )}
           </div>
@@ -261,26 +339,44 @@ function Chatuser() {
           activeModal === "clear"
             ? "Clear this chat?"
             : activeModal === "delete"
-            ? "Delete this chat?"
-            : "Remove Contact?"
+              ? "Delete this chat?"
+              : activeModal === "removeContact"
+                ? "Remove Contact?"
+                : activeModal === "leaveGroup"
+                  ? "Leave Group?"
+                  : "Delete Group?"
         }
         message={
           activeModal === "clear"
             ? "This chat will be empty but will remain in your chat list."
             : activeModal === "delete"
-            ? "This chat will be deleted from your chat list."
-            : "Are you sure you want to remove this contact?"
+              ? "This chat will be deleted from your chat list."
+              : activeModal === "removeContact"
+                ? "Are you sure you want to remove this contact?"
+                : activeModal === "leaveGroup"
+                  ? "Are you sure you want to leave this group? You will no longer receive messages from this group."
+                  : "Are you sure you want to PERMANENTLY delete this group? This action cannot be undone."
         }
         confirmText={
           activeModal === "clear"
             ? "Clear chat"
             : activeModal === "delete"
-            ? "Delete chat"
-            : "Remove"
+              ? "Delete chat"
+              : activeModal === "removeContact"
+                ? "Remove"
+                : activeModal === "leaveGroup"
+                  ? "Leave Group"
+                  : "Delete Group"
         }
       />
 
       <ProfileViewOverlay />
+      {isGroupInfoOpen && selectedConversation.isGroup && (
+        <GroupInfoModal
+          group={selectedConversation}
+          onClose={() => setIsGroupInfoOpen(false)}
+        />
+      )}
 
       {selectedConversation.isContact === false && (
         <div className="absolute top-[8vh] inset-x-4 mt-2 bg-gray-800 border border-yellow-500 rounded-lg p-4 shadow-2xl z-[100] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in-down">
@@ -310,8 +406,8 @@ function Chatuser() {
                     users.map((u) =>
                       u._id === selectedConversation._id
                         ? { ...u, isContact: true }
-                        : u
-                    )
+                        : u,
+                    ),
                   );
                   setSelectedConversation({
                     ...selectedConversation,
@@ -334,7 +430,7 @@ function Chatuser() {
                   });
                   toast.success("User blocked");
                   setUsers(
-                    users.filter((u) => u._id !== selectedConversation._id)
+                    users.filter((u) => u._id !== selectedConversation._id),
                   );
                   setSelectedConversation(null);
                 } catch (e) {

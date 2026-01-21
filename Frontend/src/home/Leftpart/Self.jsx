@@ -7,19 +7,35 @@ import Cookies from "js-cookie";
 import Avatar from "../../assets/avatar.jpg";
 import ProfileModal from "../../components/ProfileModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
+import { BsThreeDotsVertical } from "react-icons/bs";
 
 function Self() {
   const [authUser, setAuthUser] = useState(
-    JSON.parse(localStorage.getItem("ChatApp"))
+    JSON.parse(localStorage.getItem("ChatApp")),
   );
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     localStorage.setItem("theme", theme);
     document.querySelector("html").setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleUpdateProfile = async (newName, file) => {
     let base64Data = null;
@@ -77,7 +93,7 @@ function Self() {
       } catch (storageError) {
         if (storageError.name === "QuotaExceededError") {
           console.warn(
-            "Storage full! Saving user without profile pic to local cache."
+            "Storage full! Saving user without profile pic to local cache.",
           );
           // Save a lean version to storage so session is preserved, but keep full version in RAM
           const leanUser = {
@@ -146,21 +162,44 @@ function Self() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="relative" ref={menuRef}>
           <button
-            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="bg-base-300 p-2 rounded-full hover:bg-base-content hover:text-base-100 duration-200 text-base-content">
-            {theme === "light" ? (
-              <IoMoon className="text-2xl" />
-            ) : (
-              <IoSunny className="text-2xl" />
-            )}
+            <BsThreeDotsVertical className="text-2xl" />
           </button>
-          <button
-            onClick={handleLogout}
-            className="bg-base-300 p-2 rounded-full hover:bg-base-content hover:text-base-100 duration-200 text-base-content">
-            <BiLogOutCircle className="text-2xl" />
-          </button>
+
+          {isMenuOpen && (
+            <div className="absolute right-0 bottom-full mb-2 w-48 bg-base-200 rounded-lg shadow-xl py-2 z-[100] border border-base-300">
+              <button
+                onClick={() => {
+                  setTheme(theme === "light" ? "dark" : "light");
+                  setIsMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-base-300 flex items-center gap-3 text-base-content transition-colors">
+                {theme === "light" ? (
+                  <>
+                    <IoMoon className="text-xl" />
+                    <span>Dark Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <IoSunny className="text-xl" />
+                    <span>Light Mode</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 hover:bg-base-300 flex items-center gap-3 text-red-500 transition-colors border-t border-base-300">
+                <BiLogOutCircle className="text-xl" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

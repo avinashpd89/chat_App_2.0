@@ -4,9 +4,12 @@ import axios from "axios";
 import { useAuth } from "../context/Authprovider";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import { SignalManager, signalStore } from "../utils/SignalManager.js";
+
 function Login() {
   const [authUser, setAuthUser] = useAuth();
+  const [showPassword, setShowPassword] = React.useState(false);
   const {
     register,
     handleSubmit,
@@ -100,11 +103,17 @@ function Login() {
               />
             </svg>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               className="grow"
               placeholder="Password"
               {...register("password", { required: true })}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-xl cursor-pointer opacity-70 hover:opacity-100">
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
           </label>
           {errors.password && (
             <span className="text-red-500 text-sm font-semibold">

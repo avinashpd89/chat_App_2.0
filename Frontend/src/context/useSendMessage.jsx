@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import useConversation from "../zustand/useConversation.js";
 import axios from "axios";
 import { useAuth } from "./Authprovider.jsx";
+import sound from "../assets/sound.mp3";
 
 import { SignalManager } from "../utils/SignalManager.js";
 import { E2EValidator } from "../utils/E2EValidator.js";
@@ -21,10 +22,17 @@ function useSendMessage() {
     setLoading(true);
     try {
       // Pre-validation: Ensure both users have encryption keys
-      const isValid = await E2EValidator.validateBeforeSend(
-        authUser.user._id,
-        selectedConversation._id
-      );
+      // Skip for groups because Group ID doesn't have keys (members do)
+      let isValid = true;
+      if (!selectedConversation.isGroup) {
+        isValid = await E2EValidator.validateBeforeSend(
+          authUser.user._id,
+          selectedConversation._id,
+        );
+      } else {
+        // For groups, validation happens implicitly during fan-out encryption
+        isValid = true;
+      }
 
       if (!isValid) {
         console.error("E2E encryption validation failed");
@@ -38,12 +46,17 @@ function useSendMessage() {
         async (userId) => {
           const res = await axios.get(`/api/user/keys/fetch/${userId}`);
           return res.data;
-        }
+        },
+        selectedConversation.isGroup
+          ? selectedConversation.members.map((m) =>
+              typeof m === "object" ? m._id : m,
+            )
+          : null,
       );
 
       const res = await axios.post(
         `/api/message/send/${selectedConversation._id}`,
-        { message: encryptedPayload, messageType }
+        { message: encryptedPayload, messageType },
       );
 
       // We process the response to display it immediately.
@@ -68,7 +81,7 @@ function useSendMessage() {
       updateLastMessage(
         selectedConversation._id?.toString(),
         previewText,
-        messageTime
+        messageTime,
       );
 
       setMessage([...message, decryptedResMessage]);

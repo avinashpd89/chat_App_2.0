@@ -4,10 +4,14 @@ import axios from "axios";
 import { useAuth } from "../context/Authprovider";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import { SignalManager } from "../utils/SignalManager.js";
 
 function Signup() {
   const [authUser, setAuthUser] = useAuth();
+  const [passwordError, setPasswordError] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const {
     register,
     handleSubmit,
@@ -20,6 +24,30 @@ function Signup() {
 
   const validatePasswordMatch = (value) => {
     return value === password || "Passwords do not match";
+  };
+
+  const validatePasswordStrength = (value) => {
+    if (!value) return true; // Allow empty on change, validate on submit
+
+    const hasUppercase = /[A-Z]/.test(value);
+    const hasLowercase = /[a-z]/.test(value);
+    const hasNumber = /[0-9]/.test(value);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value);
+
+    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+      return "Password must contain uppercase, lowercase, number, and special character";
+    }
+    return true;
+  };
+
+  const handlePasswordBlur = () => {
+    const validation = validatePasswordStrength(password);
+    if (validation !== true) {
+      setPasswordError(validation);
+      toast.error(validation);
+    } else {
+      setPasswordError("");
+    }
   };
 
   const onSubmit = async (data) => {
@@ -123,15 +151,27 @@ function Signup() {
               />
             </svg>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               className="grow"
               placeholder="Password"
-              {...register("password", { required: true })}
+              onBlur={handlePasswordBlur}
+              {...register("password", {
+                required: "Password is required",
+                validate: validatePasswordStrength,
+              })}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-xl cursor-pointer opacity-70 hover:opacity-100">
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
           </label>
-          {errors.password && (
+          {(passwordError || errors.password) && (
             <span className="text-red-500 text-sm font-semibold">
-              This field is required
+              {passwordError ||
+                errors.password?.message ||
+                "This field is required"}
             </span>
           )}
           {/* confirm Password  */}
@@ -148,7 +188,7 @@ function Signup() {
               />
             </svg>
             <input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               className="grow"
               placeholder=" Confirm Password"
               {...register("confirmPassword", {
@@ -156,6 +196,12 @@ function Signup() {
                 validate: validatePasswordMatch,
               })}
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="text-xl cursor-pointer opacity-70 hover:opacity-100">
+              {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
           </label>
           {errors.confirmPassword && (
             <span className="text-red-500 text-sm font-semibold">

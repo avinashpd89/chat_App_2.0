@@ -11,6 +11,19 @@ export const signup = async (req, res) => {
         if (password !== confirmPassword) {
             return res.status(400).json({ error: "Passwords do not match" });
         }
+
+        // Password complexity check
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasLowercase = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+        if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+            return res.status(400).json({
+                error: "Password must contain uppercase, lowercase, number, and special character"
+            });
+        }
+
         if (!publicKey) {
             return res.status(400).json({ error: "Public key is required for E2E encryption" });
         }
@@ -109,9 +122,10 @@ export const allUsers = async (req, res) => {
             }
         });
 
-        // 2. Find Strangers (Users from conversations who are NOT contacts and NOT blocked)
+        // 2. Find Strangers (Users from 1-to-1 conversations who are NOT contacts and NOT blocked)
         const conversations = await Conversation.find({
-            members: { $in: [currentUser._id] }
+            members: { $in: [currentUser._id] },
+            isGroup: false // Only fetch 1-to-1 conversations, not groups
         }).populate("members", "-password");
 
         const blockedSet = new Set(currentUser.blockedUsers.map(u => u._id.toString()));
@@ -138,6 +152,22 @@ export const allUsers = async (req, res) => {
         res.status(201).json(finalUserList);
     } catch (error) {
         console.log("Error in allUsers Controller: " + error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// FETCH ALL GROUPS FOR CURRENT USER
+export const getGroups = async (req, res) => {
+    try {
+        const currentUser = req.user;
+        const groups = await Conversation.find({
+            isGroup: true,
+            members: { $in: [currentUser._id] }
+        }).populate("members", "-password");
+
+        res.status(200).json(groups);
+    } catch (error) {
+        console.log("Error in getGroups Controller: " + error);
         res.status(500).json({ error: "Internal server error" });
     }
 };

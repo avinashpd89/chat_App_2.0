@@ -33,15 +33,28 @@ function Typesend() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const inputRef = useRef(null);
+
+  // Restore focus to input after loading completes
+  useEffect(() => {
+    if (!loading && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [loading]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (message.trim() === "") return;
     await sendMessages(message);
     setMessage("");
+    // Focus will be handled by the useEffect above
   };
 
   const onEmojiClick = (emojiObject) => {
     setMessage((prev) => prev + emojiObject.emoji);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
   };
 
   const handleFileChange = (e) => {
@@ -238,6 +251,7 @@ function Typesend() {
               <div className="flex-1 relative flex items-center min-w-0">
                 <input
                   id="chat-message-input"
+                  ref={inputRef}
                   type="text"
                   placeholder="Type a message..."
                   value={message}

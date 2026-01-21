@@ -1,5 +1,5 @@
 import express from "express";
-import { signup, login, logout, allUsers, updateUser, updateOtherUser, deleteUser, addContact, removeContact, blockUser, publishKeys, fetchKeyBundle, getKeyCount } from "../controller/user.controller.js";
+import { signup, login, logout, allUsers, getGroups, updateUser, updateOtherUser, deleteUser, addContact, removeContact, blockUser, publishKeys, fetchKeyBundle, getKeyCount } from "../controller/user.controller.js";
 import secureRoute from "../middleware/secureRoute.js";
 
 const router = express.Router()
@@ -7,6 +7,7 @@ router.post("/signup", signup)
 router.post("/login", login)
 router.post("/logout", logout)
 router.get("/allusers", secureRoute, allUsers)
+router.get("/get-groups", secureRoute, getGroups)
 router.put("/update", secureRoute, updateUser)
 router.put("/update/:id", secureRoute, updateOtherUser)
 router.delete("/delete/:id", secureRoute, deleteUser)

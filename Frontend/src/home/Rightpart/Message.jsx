@@ -2,17 +2,30 @@ import { useState, useRef, useEffect } from "react";
 import useDeleteMessage from "../../context/useDeleteMessage";
 import { MdDelete } from "react-icons/md";
 import { HiDocumentText } from "react-icons/hi";
+import useConversation from "../../zustand/useConversation.js";
+import Avatar from "../../assets/avatar.jpg";
 
 function Message({ message }) {
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const deleteMenuRef = useRef(null);
   const authUser = JSON.parse(localStorage.getItem("ChatApp"));
+  const { selectedConversation } = useConversation();
   const itsMe = message.senderId === authUser.user._id;
   const chatName = itsMe ? "chat-end" : "chat-start";
   const chatColor = itsMe
     ? "bg-blue-500 text-white"
     : "bg-base-100 text-base-content border border-base-300";
   const { deleteMessage, loading: isDeleting } = useDeleteMessage();
+
+  // Find sender info if it's a group chat and not me
+  const isGroup = selectedConversation?.isGroup;
+  let senderInfo = null;
+
+  if (isGroup && !itsMe) {
+    senderInfo = selectedConversation.members.find(
+      (member) => member._id.toString() === message.senderId.toString(),
+    );
+  }
 
   const createdAt = new Date(message.createdAt);
   const formattedTime = createdAt.toLocaleTimeString([], {
@@ -72,10 +85,48 @@ function Message({ message }) {
 
   const isDeleted = message.isDeletedForEveryone;
 
+  // Generate a consistent color for the user name based on their ID
+  const getUserColor = (userId) => {
+    const colors = [
+      "text-red-500",
+      "text-green-500",
+      "text-yellow-500",
+      "text-purple-500",
+      "text-pink-500",
+      "text-indigo-500",
+      "text-teal-500",
+      "text-orange-500",
+    ];
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
   return (
     <div>
       <div className="p-4 group">
         <div className={`chat ${chatName} min-w-0 relative`}>
+          {/* Profile Picture for Group Messages (Incoming) */}
+          {isGroup && !itsMe && (
+            <div className="chat-image avatar">
+              <div className="w-10 rounded-full">
+                <img alt="Profile" src={senderInfo?.profilepic || Avatar} />
+              </div>
+            </div>
+          )}
+
+          {/* Group Header: Sender Name */}
+          {isGroup && !itsMe && (
+            <div className="chat-header mb-1 text-xs font-bold">
+              <span
+                className={senderInfo?._id ? getUserColor(senderInfo._id) : ""}>
+                {senderInfo?.name || "Unknown"}
+              </span>
+            </div>
+          )}
+
           <div
             className={`chat-bubble ${chatColor} break-words max-w-[90%] md:max-w-[70%] relative z-10 ${
               message.messageType === "image" ||

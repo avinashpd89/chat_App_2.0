@@ -270,14 +270,14 @@ export const SignalManager = {
     },
 
     // 2. Encrypt Message
-    encryptMessage: async (recipientId, messageText, currentUserId, fetchKeyBundleFn) => {
-        const encryptForRecipient = async (targetId) => {
-            const address = new SignalProtocolAddress(targetId, 1);
+    encryptMessage: async (targetId, messageText, currentUserId, fetchKeyBundleFn, memberIds = null) => {
+        const encryptForRecipient = async (recipientId) => {
+            const address = new SignalProtocolAddress(recipientId, 1);
             const hasSession = await signalStore.loadSession(address.toString());
 
             if (!hasSession) {
-                const bundle = await fetchKeyBundleFn(targetId);
-                if (!bundle) throw new Error("Could not fetch keys");
+                const bundle = await fetchKeyBundleFn(recipientId);
+                if (!bundle) throw new Error(`Could not fetch keys for ${recipientId}`);
 
                 const preKeyBundle = {
                     identityKey: stringToArrayBuffer(bundle.identityKey),
@@ -298,7 +298,6 @@ export const SignalManager = {
             }
 
             const cipher = new SessionCipher(signalStore, address);
-            // Use TextEncoder for robust UTF-8 handling especially for long strings (images/videos)
             const msgBuffer = new TextEncoder().encode(messageText);
             const arrayBuffer = msgBuffer.buffer.slice(msgBuffer.byteOffset, msgBuffer.byteOffset + msgBuffer.byteLength);
             const ciphertext = await cipher.encrypt(arrayBuffer);
@@ -306,17 +305,35 @@ export const SignalManager = {
         };
 
         try {
-            const recipientPayload = await encryptForRecipient(recipientId);
-            // Sender History Payload: Always use stable Base64 for history to ensure you can always see your own messages
+            let recipientPayload;
+            let groupPayloads = null;
+
+            if (memberIds && Array.isArray(memberIds)) {
+                // Group Chat: Encrypt for all members (Fan-out)
+                groupPayloads = {};
+                for (const mId of memberIds) {
+                    if (mId !== currentUserId) {
+                        try {
+                            groupPayloads[mId] = await encryptForRecipient(mId);
+                        } catch (e) {
+                            console.error(`Failed to encrypt for member ${mId}`, e);
+                        }
+                    }
+                }
+                // For group messages, recipientPayload is not used or can be the first successful one
+                recipientPayload = Object.values(groupPayloads)[0];
+            } else {
+                // 1-to-1 Chat
+                recipientPayload = await encryptForRecipient(targetId);
+            }
+
             const senderPayload = { type: 100, body: Buffer.from(messageText, 'utf8').toString('base64') };
 
             return JSON.stringify({
                 recipientPayload,
+                groupPayloads, // Map of userId -> {type, body}
                 senderPayload,
                 senderId: currentUserId,
-                // Only send plaintext for short text messages to help auto-recovery.
-                // For large images, we omit it to save size since senderPayload is already a backup.
-                plaintext: messageText.length < 1000 ? messageText : undefined,
                 timestamp: Date.now()
             });
         } catch (error) {
@@ -325,7 +342,6 @@ export const SignalManager = {
             return JSON.stringify({
                 senderPayload,
                 senderId: currentUserId,
-                plaintext: messageText.length < 1000 ? messageText : undefined,
                 timestamp: Date.now(),
                 encryptionFailed: true
             });
@@ -354,15 +370,19 @@ export const SignalManager = {
         let decryptionAddressId = null;
         let isHistory = false;
 
-        // Handle dual-payload format
-        if (parsed.recipientPayload && parsed.senderPayload) {
-            if (senderId === currentUserId) {
-                payloadToDecrypt = parsed.senderPayload;
-                isHistory = true;
-            } else {
-                payloadToDecrypt = parsed.recipientPayload;
-                decryptionAddressId = senderId;
-            }
+        // Handle dual-payload and group-payload formats
+        if (senderId === currentUserId) {
+            // My own message (History)
+            payloadToDecrypt = parsed.senderPayload;
+            isHistory = true;
+        } else if (parsed.groupPayloads && parsed.groupPayloads[currentUserId]) {
+            // Group message - found my specific payload
+            payloadToDecrypt = parsed.groupPayloads[currentUserId];
+            decryptionAddressId = senderId;
+        } else if (parsed.recipientPayload) {
+            // Direct message or group message where I'm a recipient
+            payloadToDecrypt = parsed.recipientPayload;
+            decryptionAddressId = senderId;
         } else if (parsed.type && parsed.body) {
             // Legacy single-payload format
             payloadToDecrypt = parsed;
@@ -405,11 +425,7 @@ export const SignalManager = {
             if (isHistory && payloadToDecrypt.type === 100) {
                 resultText = Buffer.from(payloadToDecrypt.body, 'base64').toString('utf8');
             }
-            // 2. Use plaintext field if available (for recovery)
-            else if (parsed.plaintext) {
-                resultText = parsed.plaintext;
-            }
-            // 3. Last resort: try to peek at senderPayload if it's type 100
+            // 2. Last resort: try to peek at senderPayload if it's type 100
             else if (parsed.senderPayload?.type === 100 && parsed.senderPayload.body) {
                 resultText = Buffer.from(parsed.senderPayload.body, 'base64').toString('utf8');
             }

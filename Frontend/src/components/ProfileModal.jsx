@@ -76,6 +76,18 @@ const ProfileModal = ({ isOpen, onClose, user, onUpdate, onDeleteAccount }) => {
             />
           </div>
 
+          <div>
+            <label className="label">
+              <span className="label-text">Email</span>
+            </label>
+            <input
+              type="email"
+              value={user.email}
+              disabled
+              className="input input-bordered w-full bg-base-200 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-primary cursor-not-allowed"
+            />
+          </div>
+
           <button
             onClick={handleSave}
             className="btn btn-primary w-full text-white mt-4">

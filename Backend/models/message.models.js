@@ -21,6 +21,10 @@ const messageSchema = new mongoose.Schema({
         enum: ['text', 'image', 'video', 'document'],
         default: 'text'
     },
+    isRead: {
+        type: Boolean,
+        default: false
+    },
     deletedBy: [
         {
             type: mongoose.Schema.Types.ObjectId,

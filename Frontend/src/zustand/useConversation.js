@@ -25,6 +25,14 @@ const useConversation = create(
             },
             users: [],
             setUsers: (users) => set({ users }),
+            groups: [],
+            setGroups: (groups) => {
+                if (typeof groups === 'function') {
+                    set((state) => ({ groups: groups(state.groups) }));
+                } else {
+                    set({ groups });
+                }
+            },
             unreadCounts: {},
             lastMessages: {},
             setUnreadCounts: (unreadCounts) => set({ unreadCounts }),

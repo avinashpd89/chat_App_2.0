@@ -16,9 +16,29 @@ const conversationSchema = new mongoose.Schema({
             ref: Message,
             default: []
         }
-    ]
+    ],
 
-}, {timestamps: true})
+    isGroup: {
+        type: Boolean,
+        default: false
+    },
+
+    groupName: {
+        type: String,
+        default: ""
+    },
+
+    groupAdmin: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: User
+    },
+
+    groupProfilePic: {
+        type: String,
+        default: ""
+    }
+
+}, { timestamps: true })
 
 const Conversation = mongoose.model("conversation", conversationSchema);
 
