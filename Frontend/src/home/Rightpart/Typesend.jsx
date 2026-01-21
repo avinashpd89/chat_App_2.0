@@ -137,7 +137,7 @@ function Typesend() {
   }, [showPicker]);
 
   return (
-    <div className="w-full">
+    <div className="w-full relative z-50">
       {/* File Preview Modal */}
       {previewFile && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
@@ -235,7 +235,7 @@ function Typesend() {
                 </div>
 
                 {showPicker && (
-                  <div className="absolute bottom-16 left-0 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="absolute bottom-16 left-0 z-[110] animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="rounded-2xl overflow-hidden shadow-2xl border border-white/10">
                       <EmojiPicker
                         onEmojiClick={onEmojiClick}
