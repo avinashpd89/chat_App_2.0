@@ -67,7 +67,7 @@ function App() {
               />
             </Routes>
             <CallInterface />
-            <OfflineMessageNotification />
+            {/* <OfflineMessageNotification /> */}
           </BrowserRouter>
           <Toaster />
         </NotificationProvider>

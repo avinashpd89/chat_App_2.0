@@ -8,6 +8,7 @@ import Avatar from "../../assets/avatar.jpg";
 import ProfileModal from "../../components/ProfileModal";
 import ConfirmationModal from "../../components/ConfirmationModal";
 import { BsThreeDotsVertical } from "react-icons/bs";
+import { compressImage } from "../../utils/imageCompression";
 
 function Self() {
   const [authUser, setAuthUser] = useState(
@@ -40,19 +41,27 @@ function Self() {
   const handleUpdateProfile = async (newName, file) => {
     let base64Data = null;
 
-    // If a new file is provided, check size and convert to base64
+    // If a new file is provided, compress it and convert to base64
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        return toast.error("File size too large (max 5MB)");
-      }
-      const convertToBase64 = (file) => {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.readAsDataURL(file);
+      try {
+        const compressedBlob = await compressImage(file, {
+          maxWidth: 1024,
+          maxHeight: 1024,
+          quality: 0.7,
         });
-      };
-      base64Data = await convertToBase64(file);
+
+        const convertToBase64 = (blob) => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(blob);
+          });
+        };
+        base64Data = await convertToBase64(compressedBlob);
+      } catch (compressionError) {
+        console.error("Compression failed:", compressionError);
+        return toast.error("Failed to process image");
+      }
     }
 
     try {
