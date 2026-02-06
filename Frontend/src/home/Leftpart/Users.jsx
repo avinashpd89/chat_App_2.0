@@ -42,9 +42,7 @@ function Users({ filterType = "all" }) {
       <h1 className="px-8 py-2 text-base-content font-semibold bg-base-200 rounded-md flex items-center justify-between">
         <span>Messages</span>
       </h1>
-      <div
-        className="py-2 flex-1 overflow-y-auto"
-        style={{ maxHeight: "calc(84vh - 10vh)" }}>
+      <div className="py-2">
         {combinedItems.length > 0 ? (
           combinedItems.map((item, index) => <User key={index} user={item} />)
         ) : (

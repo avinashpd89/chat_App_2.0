@@ -21,7 +21,7 @@ function Logout() {
     }
   };
   return (
-    <div className="h-[8vh] flex items-center bg-gray-800 px-4">
+    <div className="h-16 flex items-center bg-gray-800 px-4">
       <div>
         <BiLogOutCircle
           className="text-3xl text-white hover:bg-gray-700 duration-300 rounded-full cursor-pointer"

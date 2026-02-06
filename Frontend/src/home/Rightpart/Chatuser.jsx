@@ -159,7 +159,7 @@ function Chatuser() {
 
   return (
     <div className="relative z-50">
-      <div className="flex items-center justify-between h-[8vh] bg-base-100 px-5 duration-300 border-b border-base-300/20">
+      <div className="flex items-center justify-between h-16 bg-base-100 px-5 duration-300 border-b border-base-300/20">
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setSelectedConversation(null)}
@@ -379,7 +379,7 @@ function Chatuser() {
       )}
 
       {selectedConversation.isContact === false && (
-        <div className="absolute top-[8vh] inset-x-4 mt-2 bg-gray-800 border border-yellow-500 rounded-lg p-4 shadow-2xl z-[100] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in-down">
+        <div className="absolute top-16 inset-x-4 mt-2 bg-gray-800 border border-yellow-500 rounded-lg p-4 shadow-2xl z-[100] flex flex-col md:flex-row items-center justify-between gap-4 animate-fade-in-down">
           <div>
             <h3 className="text-yellow-500 font-bold text-lg">
               ⚠️ Safety Warning
