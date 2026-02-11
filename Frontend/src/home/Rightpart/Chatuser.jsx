@@ -228,34 +228,50 @@ function Chatuser() {
         </div>
 
         <div className="flex items-center space-x-3">
-          {!selectedConversation.isGroup && (
-            <>
-              <button
-                onClick={() =>
-                  callUser(
-                    selectedConversation._id,
-                    selectedConversation.name,
-                    selectedConversation.profilepic,
-                    true,
-                  )
-                }
-                className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
-                <IoVideocam className="text-2xl text-base-content" />
-              </button>
-              <button
-                onClick={() =>
-                  callUser(
-                    selectedConversation._id,
-                    selectedConversation.name,
-                    selectedConversation.profilepic,
-                    false,
-                  )
-                }
-                className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
-                <IoCall className="text-2xl text-base-content" />
-              </button>
-            </>
-          )}
+          <button
+            onClick={() => {
+              if (selectedConversation.isGroup) {
+                callUser(
+                  selectedConversation._id,
+                  selectedConversation.groupName,
+                  selectedConversation.groupProfilePic,
+                  true,
+                  selectedConversation.members,
+                );
+              } else {
+                callUser(
+                  selectedConversation._id,
+                  selectedConversation.name,
+                  selectedConversation.profilepic,
+                  true,
+                );
+              }
+            }}
+            className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
+            <IoVideocam className="text-2xl text-base-content" />
+          </button>
+          <button
+            onClick={() => {
+              if (selectedConversation.isGroup) {
+                callUser(
+                  selectedConversation._id,
+                  selectedConversation.groupName,
+                  selectedConversation.groupProfilePic,
+                  false,
+                  selectedConversation.members,
+                );
+              } else {
+                callUser(
+                  selectedConversation._id,
+                  selectedConversation.name,
+                  selectedConversation.profilepic,
+                  false,
+                );
+              }
+            }}
+            className="p-2 hover:bg-gray-700/10 rounded-full duration-200">
+            <IoCall className="text-2xl text-base-content" />
+          </button>
 
           <div className="relative" ref={menuRef}>
             <button

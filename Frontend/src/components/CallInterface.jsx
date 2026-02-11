@@ -27,6 +27,8 @@ const CallInterface = () => {
     toggleCamera,
     isMuted,
     isCameraOff,
+    isGroupCall,
+    peers,
   } = useCall();
 
   // Only render if there is an active interaction
@@ -52,7 +54,11 @@ const CallInterface = () => {
           </div>
           <h2 className="text-3xl font-bold mb-2">{call.name}</h2>
           <p className="text-xl mb-8 text-gray-400">
-            {isCallRejected ? "Call Rejected" : "Calling..."}
+            {isCallRejected
+              ? "Call Rejected"
+              : isGroupCall
+                ? "Starting call..."
+                : "Calling..."}
           </p>
           {/* Local Video Preview - Only for Video Calls */}
           {call.callType === "video" && (
@@ -97,7 +103,8 @@ const CallInterface = () => {
           </div>
           <h2 className="text-3xl mb-2 font-bold">{call.name}</h2>
           <p className="mb-8 text-gray-300">
-            Incoming {call.callType === "video" ? "Video" : "Audio"} Call...
+            Incoming {call.isGroupCall ? "Group " : ""}
+            {call.callType === "video" ? "Video" : "Audio"} Call...
           </p>
           <div className="flex space-x-8">
             <button
@@ -114,91 +121,214 @@ const CallInterface = () => {
         </div>
       )}
 
-      {/* Active Video Call */}
+      {/* Active Call - Group or 1-to-1 */}
       {callAccepted && !callEnded && (
         <div className="w-full h-full flex flex-col items-center justify-center p-4">
-          <div className="relative w-full max-w-6xl h-[85vh] bg-black rounded-lg overflow-hidden flex items-center justify-center shadow-2xl border border-gray-800">
-            {/* Remote Stream - Always rendered to ensure sound plays */}
-            <video
-              playsInline
-              ref={userVideo}
-              autoPlay
-              className={`w-full h-full object-contain ${
-                call.callType === "audio" ? "hidden" : ""
-              }`}
-            />
-
-            {/* Audio Placeholder UI */}
-            {call.callType === "audio" && (
-              <div className="flex flex-col items-center">
-                <div className="w-48 h-48 bg-gray-800 rounded-full flex items-center justify-center mb-6 shadow-2xl border-4 border-primary/20 overflow-hidden">
-                  {call.profilepic ? (
-                    <img
-                      src={call.profilepic}
-                      alt={call.name}
+          {isGroupCall ? (
+            // GROUP CALL UI - Grid Layout
+            <div className="w-full h-[85vh] flex flex-col">
+              <div
+                className="flex-1 grid gap-4 p-4"
+                style={{
+                  gridTemplateColumns:
+                    peers.length === 0
+                      ? "1fr"
+                      : peers.length === 1
+                        ? "repeat(2, 1fr)"
+                        : peers.length <= 4
+                          ? "repeat(2, 1fr)"
+                          : "repeat(3, 1fr)",
+                  gridTemplateRows:
+                    peers.length <= 2
+                      ? "1fr"
+                      : peers.length <= 4
+                        ? "repeat(2, 1fr)"
+                        : "repeat(3, 1fr)",
+                }}>
+                {/* Local Video */}
+                <div className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl border border-gray-700">
+                  {call.callType === "video" ? (
+                    <video
+                      playsInline
+                      muted
+                      ref={myVideo}
+                      autoPlay
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-8xl font-bold text-primary">
-                      {call.name?.charAt(0) || "U"}
-                    </span>
+                    <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                      <div className="text-center">
+                        <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <MdMic className="text-5xl text-primary" />
+                        </div>
+                        <p className="text-white font-semibold">You</p>
+                      </div>
+                    </div>
                   )}
+                  <div className="absolute bottom-2 left-2 bg-black/70 px-3 py-1 rounded-full text-sm">
+                    You {isMuted && "🔇"} {isCameraOff && "📷"}
+                  </div>
                 </div>
-                <h3 className="text-3xl font-semibold">{call.name}</h3>
-                <p className="text-primary mt-2 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-ping"></span>
-                  In Audio Call...
-                </p>
-              </div>
-            )}
 
-            {/* Local Video - Picture in Picture (Only for video calls) */}
-            {call.callType === "video" && (
-              <div className="absolute top-4 right-4 w-64 h-48 bg-gray-900 shadow-xl border-2 border-gray-700 rounded-xl overflow-hidden">
-                <video
-                  playsInline
-                  muted
-                  ref={myVideo}
-                  autoPlay
-                  className="w-full h-full object-cover"
-                />
+                {/* Remote Participants */}
+                {peers.map((peer) => (
+                  <div
+                    key={peer.peerId}
+                    className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl border border-gray-700">
+                    <video
+                      playsInline
+                      autoPlay
+                      ref={(el) => {
+                        if (el && peer.stream) {
+                          el.srcObject = peer.stream;
+                        }
+                      }}
+                      className={`w-full h-full object-cover ${call.callType === "audio" ? "hidden" : ""}`}
+                    />
+                    {call.callType === "audio" && (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                        <div className="text-center">
+                          <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <span className="text-4xl font-bold text-primary">
+                              {peer.name?.charAt(0) || "U"}
+                            </span>
+                          </div>
+                          <p className="text-white font-semibold">
+                            {peer.name}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 left-2 bg-black/70 px-3 py-1 rounded-full text-sm">
+                      {peer.name}
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
 
-          <div className="mt-6 flex space-x-6 items-center">
-            <button
-              onClick={toggleMic}
-              className={`btn btn-circle btn-lg ${
-                isMuted ? "btn-error" : "btn-neutral"
-              }`}>
-              {isMuted ? (
-                <MdMicOff className="text-2xl" />
-              ) : (
-                <MdMic className="text-2xl" />
+              {/* Controls */}
+              <div className="mt-6 flex space-x-6 items-center justify-center pb-4">
+                <button
+                  onClick={toggleMic}
+                  className={`btn btn-circle btn-lg ${
+                    isMuted ? "btn-error" : "btn-neutral"
+                  }`}>
+                  {isMuted ? (
+                    <MdMicOff className="text-2xl" />
+                  ) : (
+                    <MdMic className="text-2xl" />
+                  )}
+                </button>
+
+                {call.callType === "video" && (
+                  <button
+                    onClick={toggleCamera}
+                    className={`btn btn-circle btn-lg ${
+                      isCameraOff ? "btn-error" : "btn-neutral"
+                    }`}>
+                    {isCameraOff ? (
+                      <MdVideocamOff className="text-2xl" />
+                    ) : (
+                      <MdVideocam className="text-2xl" />
+                    )}
+                  </button>
+                )}
+
+                <button
+                  onClick={leaveCall}
+                  className="btn btn-error text-white rounded-full px-8 h-12 flex items-center gap-2">
+                  <MdCallEnd className="text-xl" /> End Call
+                </button>
+              </div>
+            </div>
+          ) : (
+            // 1-TO-1 CALL UI
+            <div className="w-full max-w-6xl h-[85vh] bg-black rounded-lg overflow-hidden flex items-center justify-center shadow-2xl border border-gray-800">
+              {/* Remote Stream - Always rendered to ensure sound plays */}
+              <video
+                playsInline
+                ref={userVideo}
+                autoPlay
+                className={`w-full h-full object-contain ${
+                  call.callType === "audio" ? "hidden" : ""
+                }`}
+              />
+
+              {/* Audio Placeholder UI */}
+              {call.callType === "audio" && (
+                <div className="flex flex-col items-center">
+                  <div className="w-48 h-48 bg-gray-800 rounded-full flex items-center justify-center mb-6 shadow-2xl border-4 border-primary/20 overflow-hidden">
+                    {call.profilepic ? (
+                      <img
+                        src={call.profilepic}
+                        alt={call.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-8xl font-bold text-primary">
+                        {call.name?.charAt(0) || "U"}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-3xl font-semibold">{call.name}</h3>
+                  <p className="text-primary mt-2 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-primary rounded-full animate-ping"></span>
+                    In Audio Call...
+                  </p>
+                </div>
               )}
-            </button>
 
-            {call.callType === "video" && (
+              {/* Local Video - Picture in Picture (Only for video calls) */}
+              {call.callType === "video" && (
+                <div className="absolute top-4 right-4 w-64 h-48 bg-gray-900 shadow-xl border-2 border-gray-700 rounded-xl overflow-hidden">
+                  <video
+                    playsInline
+                    muted
+                    ref={myVideo}
+                    autoPlay
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Controls for 1-to-1 call */}
+          {!isGroupCall && (
+            <div className="mt-6 flex space-x-6 items-center">
               <button
-                onClick={toggleCamera}
+                onClick={toggleMic}
                 className={`btn btn-circle btn-lg ${
-                  isCameraOff ? "btn-error" : "btn-neutral"
+                  isMuted ? "btn-error" : "btn-neutral"
                 }`}>
-                {isCameraOff ? (
-                  <MdVideocamOff className="text-2xl" />
+                {isMuted ? (
+                  <MdMicOff className="text-2xl" />
                 ) : (
-                  <MdVideocam className="text-2xl" />
+                  <MdMic className="text-2xl" />
                 )}
               </button>
-            )}
 
-            <button
-              onClick={leaveCall}
-              className="btn btn-error text-white rounded-full px-8 h-12 flex items-center gap-2">
-              <MdCallEnd className="text-xl" /> End Call
-            </button>
-          </div>
+              {call.callType === "video" && (
+                <button
+                  onClick={toggleCamera}
+                  className={`btn btn-circle btn-lg ${
+                    isCameraOff ? "btn-error" : "btn-neutral"
+                  }`}>
+                  {isCameraOff ? (
+                    <MdVideocamOff className="text-2xl" />
+                  ) : (
+                    <MdVideocam className="text-2xl" />
+                  )}
+                </button>
+              )}
+
+              <button
+                onClick={leaveCall}
+                className="btn btn-error text-white rounded-full px-8 h-12 flex items-center gap-2">
+                <MdCallEnd className="text-xl" /> End Call
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
