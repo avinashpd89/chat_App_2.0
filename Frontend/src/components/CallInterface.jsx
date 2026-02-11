@@ -126,27 +126,29 @@ const CallInterface = () => {
         <div className="w-full h-full flex flex-col items-center justify-center p-4">
           {isGroupCall ? (
             // GROUP CALL UI - Grid Layout
-            <div className="w-full h-[85vh] flex flex-col">
+            <div className="w-full h-full flex flex-col">
               <div
-                className="flex-1 grid gap-4 p-4"
+                className="flex-1 grid gap-2 md:gap-4 p-2 md:p-4 auto-rows-fr"
                 style={{
+                  maxHeight: "calc(100vh - 180px)",
                   gridTemplateColumns:
                     peers.length === 0
                       ? "1fr"
-                      : peers.length === 1
+                      : peers.length + 1 === 2
                         ? "repeat(2, 1fr)"
-                        : peers.length <= 4
-                          ? "repeat(2, 1fr)"
-                          : "repeat(3, 1fr)",
-                  gridTemplateRows:
-                    peers.length <= 2
-                      ? "1fr"
-                      : peers.length <= 4
-                        ? "repeat(2, 1fr)"
-                        : "repeat(3, 1fr)",
+                        : peers.length + 1 === 3
+                          ? "repeat(2, 1fr)" // Change to 2 columns for 3 people
+                          : peers.length + 1 <= 4
+                            ? "repeat(2, 1fr)"
+                            : peers.length + 1 <= 6
+                              ? "repeat(3, 1fr)"
+                              : "repeat(4, 1fr)",
+                  gridAutoRows: "minmax(0, 1fr)",
                 }}>
                 {/* Local Video */}
-                <div className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl border border-gray-700">
+                <div
+                  className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl border border-gray-700 aspect-video md:aspect-auto md:h-full"
+                  style={{ minHeight: "120px" }}>
                   {call.callType === "video" ? (
                     <video
                       playsInline
@@ -171,39 +173,43 @@ const CallInterface = () => {
                 </div>
 
                 {/* Remote Participants */}
-                {peers.map((peer) => (
-                  <div
-                    key={peer.peerId}
-                    className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl border border-gray-700">
-                    <video
-                      playsInline
-                      autoPlay
-                      ref={(el) => {
-                        if (el && peer.stream) {
-                          el.srcObject = peer.stream;
-                        }
-                      }}
-                      className={`w-full h-full object-cover ${call.callType === "audio" ? "hidden" : ""}`}
-                    />
-                    {call.callType === "audio" && (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                        <div className="text-center">
-                          <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-4xl font-bold text-primary">
-                              {peer.name?.charAt(0) || "U"}
-                            </span>
+                {peers.map((peer, index) => {
+                  const isThirdInThree = peers.length + 1 === 3 && index === 1;
+                  return (
+                    <div
+                      key={peer.peerId}
+                      className={`relative bg-gray-900 rounded-lg overflow-hidden shadow-xl border border-gray-700 aspect-video md:aspect-auto md:h-full ${isThirdInThree ? "col-span-2 w-1/2 mx-auto" : ""}`}
+                      style={{ minHeight: "120px" }}>
+                      <video
+                        playsInline
+                        autoPlay
+                        ref={(el) => {
+                          if (el && peer.stream) {
+                            el.srcObject = peer.stream;
+                          }
+                        }}
+                        className={`w-full h-full object-cover ${call.callType === "audio" ? "hidden" : ""}`}
+                      />
+                      {call.callType === "audio" && (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                          <div className="text-center">
+                            <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                              <span className="text-4xl font-bold text-primary">
+                                {peer.name?.charAt(0) || "U"}
+                              </span>
+                            </div>
+                            <p className="text-white font-semibold">
+                              {peer.name}
+                            </p>
                           </div>
-                          <p className="text-white font-semibold">
-                            {peer.name}
-                          </p>
                         </div>
+                      )}
+                      <div className="absolute bottom-2 left-2 bg-black/70 px-3 py-1 rounded-full text-sm">
+                        {peer.name}
                       </div>
-                    )}
-                    <div className="absolute bottom-2 left-2 bg-black/70 px-3 py-1 rounded-full text-sm">
-                      {peer.name}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Controls */}
