@@ -47,7 +47,7 @@ function Search({ onFilterChange }) {
     e.preventDefault();
     if (!search) return;
     const conversation = allUsers.find((user) =>
-      user.name.toLowerCase().includes(search.toLowerCase())
+      user.name.toLowerCase().includes(search.toLowerCase()),
     );
     if (conversation) {
       setSelectedConversation(conversation);
@@ -75,8 +75,8 @@ function Search({ onFilterChange }) {
 
   return (
     <div className="">
-      <div className="px-6 py-4">
-        <div className="flex justify-between items-center mb-6">
+      <div className="px-4 py-2">
+        <div className="flex justify-between items-center mb-2">
           <h2 className="text-xl font-bold text-base-content">
             {isAdding ? "Add Contact" : "Chats"}
           </h2>
@@ -128,7 +128,7 @@ function Search({ onFilterChange }) {
 
         {/* Filter Buttons */}
         {!isAdding && (
-          <div className="flex gap-2 mb-4 px-1">
+          <div className="flex gap-2 mb-2 px-1">
             <button
               onClick={() => handleFilterChange("all")}
               className={`px-4 py-2 rounded-full font-medium transition-colors ${

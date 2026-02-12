@@ -80,7 +80,12 @@ function useGetSocketMessage() {
           ? decryptedMessage
           : `[${newMessage.messageType}]`;
 
-      updateLastMessage(conversationId, previewText, messageTime);
+      updateLastMessage(
+        conversationId,
+        previewText,
+        messageTime,
+        newMessage.createdAt || Date.now(),
+      );
 
       // Play notification sound for all messages from other users
       if (senderId !== authUserId) {
@@ -129,21 +134,44 @@ function useGetSocketMessage() {
         // addToast(title, previewText, conversationId);
       }
 
-      // Check if sender is in the current list
-      const senderExists = currentUsers.some(
-        (user) => user._id?.toString() === senderId,
-      );
+      // Reorder the list (User or Group)
+      if (isGroupMsg) {
+        const { groups, setGroups } = useConversation.getState();
+        const groupIndex = groups.findIndex((g) => g._id === conversationId);
+        if (groupIndex !== -1) {
+          const updatedGroups = [...groups];
+          const [group] = updatedGroups.splice(groupIndex, 1);
+          updatedGroups.unshift(group);
+          setGroups(updatedGroups);
+        }
+      } else {
+        const { users, setUsers } = useConversation.getState();
+        const userIndex = users.findIndex(
+          (u) => u._id?.toString() === senderId,
+        );
+        if (userIndex !== -1) {
+          const updatedUsers = [...users];
+          const [user] = updatedUsers.splice(userIndex, 1);
+          updatedUsers.unshift(user);
+          setUsers(updatedUsers);
+        } else {
+          // If user not in list (new contact), fetch and add/reorder
+          console.log("Socket: Sender not in list, refreshing users");
+          try {
+            const token = Cookies.get("jwt");
+            const response = await axios.get("/api/user/allusers", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            // The backend usually returns sorted or we might need to sort manually here if needed
+            // But strictly speaking, if we just fetched, they might be anywhere.
+            // For now, let's just update the list. The next message will reorder them or we can try to find them now.
+            setUsers(response.data);
 
-      if (!senderExists && !isGroupMsg) {
-        console.log("Socket: Sender not in list, refreshing users");
-        try {
-          const token = Cookies.get("jwt");
-          const response = await axios.get("/api/user/allusers", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setUsers(response.data);
-        } catch (error) {
-          console.log("Error refreshing users:", error);
+            // Attempt to reorder immediately after fetch if possible (optional but good UX)
+            // This might be skipped if we want to keep it simple as the next logic block handles it if we assume they are now in the list
+          } catch (error) {
+            console.log("Error refreshing users:", error);
+          }
         }
       }
     });

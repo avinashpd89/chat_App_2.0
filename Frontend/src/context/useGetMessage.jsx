@@ -20,7 +20,7 @@ function useGetMessage() {
         setLoading(true);
         try {
           const res = await axios.get(
-            `/api/message/get/${selectedConversation._id}`
+            `/api/message/get/${selectedConversation._id}`,
           );
 
           const decryptedMessages = [];
@@ -32,7 +32,7 @@ function useGetMessage() {
                 msg.senderId,
                 msg.message,
                 authUser.user._id,
-                msg._id
+                msg._id,
               );
               decryptedMessages.push({
                 ...msg,
@@ -51,7 +51,7 @@ function useGetMessage() {
                 } else if (parsed.senderPayload?.body) {
                   fallbackMessage = Buffer.from(
                     parsed.senderPayload.body,
-                    "base64"
+                    "base64",
                   ).toString("utf8");
                 }
               } catch (e) {
@@ -86,7 +86,8 @@ function useGetMessage() {
             updateLastMessage(
               selectedConversation._id?.toString(),
               preview,
-              time
+              time,
+              lastOne.createdAt,
             );
           }
 

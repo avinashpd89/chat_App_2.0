@@ -52,13 +52,13 @@ const useConversation = create(
                     }
                 }));
             },
-            updateLastMessage: (userId, text, time) => {
+            updateLastMessage: (userId, text, time, timestamp) => {
                 if (!userId) return;
                 const idStr = userId.toString();
                 set((state) => ({
                     lastMessages: {
                         ...(state.lastMessages || {}),
-                        [idStr]: { text, time }
+                        [idStr]: { text, time, timestamp }
                     }
                 }));
             },

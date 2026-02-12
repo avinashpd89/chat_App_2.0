@@ -82,6 +82,7 @@ function useSendMessage() {
         selectedConversation._id?.toString(),
         previewText,
         messageTime,
+        Date.now(),
       );
 
       setMessage([...message, decryptedResMessage]);

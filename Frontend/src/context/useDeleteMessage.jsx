@@ -13,7 +13,7 @@ const useDeleteMessage = () => {
     setLoading(true);
     try {
       await axios.delete(
-        `/api/message/deleteMessage/${messageId}?type=${type}`
+        `/api/message/deleteMessage/${messageId}?type=${type}`,
       );
 
       const targetId = selectedConversation?._id?.toString();
@@ -26,7 +26,7 @@ const useDeleteMessage = () => {
                 message: "[Message deleted]",
                 isDeletedForEveryone: true,
               }
-            : msg
+            : msg,
         );
         setMessage(updatedMessages);
 
@@ -41,7 +41,7 @@ const useDeleteMessage = () => {
           });
           useConversation
             .getState()
-            .updateLastMessage(targetId, "[Message deleted]", time);
+            .updateLastMessage(targetId, "[Message deleted]", time, Date.now());
         }
       } else {
         const filteredMessages = message.filter((msg) => msg._id !== messageId);
@@ -63,13 +63,15 @@ const useDeleteMessage = () => {
                 : `[${newLast.messageType}]`;
             useConversation
               .getState()
-              .updateLastMessage(targetId, previewText, time);
+              .updateLastMessage(targetId, previewText, time, Date.now());
           }
         }
       }
 
       toast.success(
-        type === "everyone" ? "Message deleted for everyone" : "Message deleted"
+        type === "everyone"
+          ? "Message deleted for everyone"
+          : "Message deleted",
       );
     } catch (error) {
       console.log("Error deleting message", error);

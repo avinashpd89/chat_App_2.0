@@ -11,8 +11,17 @@ function Users({ filterType = "all" }) {
   const { unreadCounts } = useNotifications();
   const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
 
+  const { lastMessages } = useConversation();
+
   // Combine users and groups for display
   let combinedItems = [...(groups || []), ...(allUsers || [])];
+
+  // Sort based on last message timestamp
+  combinedItems.sort((a, b) => {
+    const tA = new Date(lastMessages[a._id]?.timestamp || 0).getTime();
+    const tB = new Date(lastMessages[b._id]?.timestamp || 0).getTime();
+    return tB - tA;
+  });
 
   // Apply filter based on filterType
   if (filterType === "unread") {
@@ -39,7 +48,7 @@ function Users({ filterType = "all" }) {
 
   return (
     <div>
-      <h1 className="px-8 py-2 text-base-content font-semibold bg-base-200 rounded-md flex items-center justify-between">
+      <h1 className="px-4 py-2 text-base-content font-semibold bg-base-200 rounded-md flex items-center justify-between">
         <span>Messages</span>
       </h1>
       <div className="py-2">
